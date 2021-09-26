@@ -1,5 +1,8 @@
 """Visualisation of wsnlab library. Basen on wsnsimpy_tk. Used package instead of message by Mustafa Tosun.
 """
+import sys
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.insert(1, '..')
 from wsnlab.source import wsnlab
 from wsnlab.source.wsnlab import *
 from threading import Thread

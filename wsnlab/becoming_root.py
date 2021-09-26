@@ -1,6 +1,9 @@
 import random
 from enum import Enum
-from wsnlab.source import wsnlab_vis as wsn
+import sys
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.insert(1, '..\source')
+from source import wsnlab_vis as wsn
 
 Roles = Enum('Roles', 'UNDISCOVERED UNREGISTERED ROOT')
 
