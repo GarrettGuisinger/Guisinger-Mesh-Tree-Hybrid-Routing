@@ -32,6 +32,17 @@ class Addr:
         self.node_addr = node_addr
 
     ############################
+    def __repr__(self):
+        """Representation method of Addr.
+
+           Args:
+
+           Returns:
+               string: represents Addr object as a string.
+        """
+        return '[%d,%d]' % (self.net_addr, self.node_addr)
+
+    ############################
     def __eq__(self, other):
         """ == operator function for Addr objects.
 
