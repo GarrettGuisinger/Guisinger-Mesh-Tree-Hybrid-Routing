@@ -129,4 +129,7 @@ dmypy.json
 .pyre/
 
 # env files
+idea
+.idea/
 idea/*
+.idea/*
