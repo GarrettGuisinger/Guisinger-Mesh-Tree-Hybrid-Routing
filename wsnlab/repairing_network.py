@@ -72,14 +72,17 @@ class SensorNode(wsn.Node):
             self.log('I became UNREGISTERED')
         self.scene.nodecolor(self.id, 1, 1, 0)
         self.erase_parent()
+        self.kill_all_timers()
         self.addr = None
         self.ch_addr = None
         self.parent_gui = None
         self.root_addr = None
         self.role = Roles.UNREGISTERED
-        self.c_probe = 0  # c means counter and probe is the name of counter
-        self.th_probe = 10  # th means threshold and probe is the name of threshold
+        self.c_probe = 0
+        self.th_probe = 10
         self.hop_count = 99999
+        self.neighbors_table = {}
+        self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
         self.received_JR_guis = []  # keeps received Join Request global unique ids
