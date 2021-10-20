@@ -74,22 +74,27 @@ class Node(wsnlab.Node):
         self.scene.nodemove(self.id, x, y)
 
     ####################
-    def draw_parent(self, dest):
+    def draw_parent(self):
         """Draws parent relation to given destination address.
 
            Args:
-               dest (Addr): x of position.
 
            Returns:
 
         """
-        for (dist, node) in self.neighbor_distance_list:
-            if dist <= self.tx_range:
-                if node.ch_addr is not None and node.ch_addr.is_equal(dest):
-                    self.scene.addlink(node.id, self.id, "parent")
-                    break
-            else:
-                break
+        self.scene.addlink(self.parent_gui, self.id, "parent")
+
+    ####################
+    def erase_parent(self):
+        """Draws parent relation to given destination address.
+
+           Args:
+
+           Returns:
+
+        """
+        if self.parent_gui is not None:
+            self.scene.dellink(self.parent_gui, self.id, "parent")
 
 
 ###########################################################

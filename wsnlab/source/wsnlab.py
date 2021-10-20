@@ -260,6 +260,17 @@ class Node:
             self.active_timer_list.remove(name)
 
     ############################
+    def kill_all_timers(self):
+        """Kills all timers.
+
+           Args:
+
+           Returns:
+
+        """
+        self.active_timer_list = []
+
+    ############################
     def delayed_exec(self, delay, func, *args, **kwargs):
         """Executes a function with given parameters after a given delay.
 

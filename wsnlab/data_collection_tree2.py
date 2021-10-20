@@ -61,6 +61,11 @@ class SensorNode(wsn.Node):
         """
         self.set_timer('TIMER_ARRIVAL', self.arrival)
 
+        if self.id != ROOT_ID:
+            rand = random.randint(0,10)
+            if rand == 0:
+                self.set_timer('TIMER_DEAD', 300)
+
     ###################
     def update_neighbor(self, pck):
         pck['arrival_time'] = self.now
@@ -73,15 +78,20 @@ class SensorNode(wsn.Node):
     def check_neighbors(self):
         childs_updated = False
         parent_dead = False
+        will_be_removed = []
         for gui, pck in self.neighbors_table.items():
             if self.now - pck['arrival_time'] > 3 * config.HEARTH_BEAT_TIME_INTERVAL:
-                del self.neighbors_table[gui]
+                will_be_removed.append(gui)
                 if gui == self.parent_gui:
                     parent_dead = True
                 elif gui in self.child_networks_table.keys():
                     del self.child_networks_table[gui]
                     childs_updated = True
+        for gui in will_be_removed:
+            del self.neighbors_table[gui]
         if parent_dead:
+            self.role = Roles.UNREGISTERED
+            self.erase_parent()
             pass
         elif childs_updated:
             self.send_network_update()
@@ -290,7 +300,7 @@ class SensorNode(wsn.Node):
                     self.parent_gui = pck['gui']
                     self.root_addr = pck['root_addr']
                     self.hop_count = pck['hop_count']
-                    self.draw_parent(pck['source'])
+                    self.draw_parent()
                     self.kill_timer('TIMER_JOIN_REQUEST')
                     yield self.timeout(.5)
                     self.send_heart_beat()
@@ -361,6 +371,13 @@ class SensorNode(wsn.Node):
             timer_duration =  self.id % 20
             if timer_duration == 0: timer_duration = 1
             self.set_timer('TIMER_SENSOR', timer_duration)
+
+        elif name == 'TIMER_DEAD':  # it dies and goes to sleep
+            self.sleep()
+            self.log('I AM DEAD')
+            self.scene.nodecolor(self.id, 1, 1, 1)  # sets self color to red
+            self.erase_parent()
+            self.kill_all_timers()
 
 
 
