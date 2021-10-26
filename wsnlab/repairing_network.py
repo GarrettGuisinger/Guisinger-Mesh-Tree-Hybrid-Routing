@@ -63,7 +63,7 @@ class SensorNode(wsn.Node):
 
         if self.id != ROOT_ID:
             rand = random.randint(0,10)
-            if rand < 2:
+            if rand % 5 == 1:
                 self.set_timer('TIMER_DEAD', 300)
 
     ###################
@@ -96,6 +96,9 @@ class SensorNode(wsn.Node):
         if pck['gui'] not in self.child_networks_table.keys() or pck['gui'] not in self.members_table:
             if pck['gui'] not in self.candidate_parents_table:
                 self.candidate_parents_table.append(pck['gui'])
+        if pck['gui'] == self.parent_gui and self.hop_count != pck['hop_count'] + 1:  # if parent's hop count is changed
+            self.hop_count = pck['hop_count'] + 1
+            self.send_heart_beat()
 
     ###################
     def check_neighbors(self):
@@ -114,16 +117,15 @@ class SensorNode(wsn.Node):
                     self.candidate_parents_table.remove(gui)
         for gui in will_be_removed:
             del self.neighbors_table[gui]
-        if parent_dead:
-            if self.role == Roles.CLUSTER_HEAD:
-                self.send_i_am_unregistered()
-            self.become_unregistered()
-        else:
-            self.send_heart_beat()
-            self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
-            if childs_updated:
-                if self.role != Roles.ROOT:
-                    self.send_network_update()
+        if self.role != Roles.UNREGISTERED:
+            if parent_dead:
+                self.repair()
+            else:
+                self.send_heart_beat()
+                self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
+                if childs_updated:
+                    if self.role != Roles.ROOT:
+                        self.send_network_update()
 
     ###################
     def select_and_join(self):
@@ -137,17 +139,46 @@ class SensorNode(wsn.Node):
         self.send_join_request(selected_addr)
         self.set_timer('TIMER_JOIN_REQUEST', 5)
 
+    ###################
+    def repair(self):
+        if self.role == Roles.REGISTERED:
+            self.become_unregistered()
+        else:
+            if config.REPAIRING_METHOD == 'ALL_ORPHAN':
+                self.repair_all_orphan()
+            elif config.REPAIRING_METHOD == 'FIND_ANOTHER_PARENT':
+                self.repair_find_another_parent()
 
     ###################
-    def send_i_am_unregistered(self):
-        """Sending probe message to be discovered and registered.
+    def repair_all_orphan(self):
+        self.send_i_am_orphan()
+        self.become_unregistered()
+
+    ###################
+    def repair_find_another_parent(self):
+        if self.parent_gui in self.candidate_parents_table:
+            self.candidate_parents_table.remove(self.parent_gui)
+            del self.neighbors_table[self.parent_gui]
+        if len(self.candidate_parents_table) != 0:
+            self.kill_all_timers()
+            self.erase_parent()
+            self.role = Roles.UNREGISTERED
+            self.select_and_join()
+        else:
+            self.send_i_am_orphan()
+            self.become_unregistered()
+
+
+    ###################
+    def send_i_am_orphan(self):
+        """Sending i am orphan message to be discovered and registered.
 
         Args:
 
         Returns:
 
         """
-        self.send({'dest': wsn.BROADCAST_ADDR, 'type': 'I_AM_UNREGISTERED',
+        self.send({'dest': wsn.BROADCAST_ADDR, 'type': 'I_AM_ORPHAN',
                    'gui': self.id})
 
 
@@ -313,10 +344,9 @@ class SensorNode(wsn.Node):
                 self.child_networks_table[pck['gui']] = pck['child_networks']
                 if self.role != Roles.ROOT:
                     self.send_network_update()
-            if pck['type'] == 'I_AM_UNREGISTERED':
+            if pck['type'] == 'I_AM_ORPHAN':
                 if pck['gui'] == self.parent_gui:
-                    self.send_i_am_unregistered()
-                    self.become_unregistered()
+                    self.repair()
             if pck['type'] == 'SENSOR':
                 pass
                 # self.log(str(pck['source'])+'--'+str(pck['sensor_value']))
@@ -341,9 +371,9 @@ class SensorNode(wsn.Node):
                 for gui in self.received_JR_guis:
                     # yield self.timeout(random.uniform(.1,.5))
                     self.send_join_reply(gui, wsn.Addr(self.ch_addr.net_addr,gui))
-            if pck['type'] == 'I_AM_UNREGISTERED':
+            if pck['type'] == 'I_AM_ORPHAN':
                 if pck['gui'] == self.parent_gui:
-                    self.become_unregistered()
+                    self.repair()
 
         elif self.role == Roles.UNDISCOVERED:  # if the node is undiscovered
             if pck['type'] == 'HEART_BEAT':  # it kills probe timer, becomes unregistered and sets join request timer once received heart beat
@@ -357,18 +387,20 @@ class SensorNode(wsn.Node):
             if pck['type'] == 'JOIN_REPLY':  # it becomes registered and sends join ack if the message is sent to itself once received join reply
                 if pck['dest_gui'] == self.id:
                     self.addr = pck['addr']
-                    self.role = Roles.REGISTERED
-                    self.scene.nodecolor(self.id, 0, 1, 0)
                     self.parent_gui = pck['gui']
                     self.root_addr = pck['root_addr']
                     self.hop_count = pck['hop_count']
                     self.draw_parent()
                     self.kill_timer('TIMER_JOIN_REQUEST')
-                    # yield self.timeout(.5)
                     self.send_heart_beat()
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
-                    # yield self.timeout(.5)
                     self.send_join_ack(pck['source'])
+                    if self.ch_addr is not None: # it could be a cluster head which lost its parent
+                        self.role = Roles.CLUSTER_HEAD
+                        self.send_network_update()
+                    else:
+                        self.role = Roles.REGISTERED
+                        self.scene.nodecolor(self.id, 0, 1, 0)
                     # # sensor implementation
                     # timer_duration =  self.id % 20
                     # if timer_duration == 0: timer_duration = 1
@@ -412,9 +444,11 @@ class SensorNode(wsn.Node):
             self.check_neighbors()
 
         elif name == 'TIMER_JOIN_REQUEST':  # if it has not received heart beat messages before, it sets timer again and wait heart beat messages once join request timer fired.
+            self.check_neighbors()
             if len(self.candidate_parents_table) == 0:
-                self.send_probe()
-                self.set_timer('TIMER_JOIN_REQUEST', 20)
+                if self.ch_addr is not None:
+                    self.send_i_am_orphan()
+                self.become_unregistered()
             else:  # otherwise it chose one of them and sends join request
                 self.select_and_join()
 
@@ -459,6 +493,8 @@ def create_network(node_class, number_of_nodes=100):
         node.tx_range = config.NODE_TX_RANGE
         node.logging = True
         node.arrival = random.uniform(0, config.NODE_ARRIVAL_MAX)
+        if node.id == ROOT_ID:
+            node.arrival = 0.1
 
 
 sim = wsn.Simulator(
