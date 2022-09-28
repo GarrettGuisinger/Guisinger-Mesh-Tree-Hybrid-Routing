@@ -6,13 +6,13 @@ BROADCAST_NODE_ADDR = 255
 
 
 ## node properties
-NODE_TX_RANGE = 100  # transmission range of nodes
+NODE_TX_RANGE = 300  # transmission range of nodes
 NODE_ARRIVAL_MAX = 200  # max time to wake up
 
 
 ## simulation properties
-SIM_NODE_COUNT = 100  # noce count in simulation
-SIM_NODE_PLACING_CELL_SIZE = 40  # cell size to place one node
+SIM_NODE_COUNT = 20  # noce count in simulation
+SIM_NODE_PLACING_CELL_SIZE = 100  # cell size to place one node
 SIM_DURATION = 500  # simulation Duration in seconds
 SIM_TIME_SCALE = 0.00001  #  The real time dureation of 1 second simualtion time
 SIM_TERRAIN_SIZE = (1400, 600)  #terrain size
