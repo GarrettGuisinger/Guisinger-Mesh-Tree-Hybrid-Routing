@@ -1,0 +1,858 @@
+
+============================================================
+ROUTING TEST - Running at time 711.1
+============================================================
+
+Found 20 registered nodes
+Testing all 380 routes sequentially...
+============================================================
+
+[Testing: Node 0 -> Node 1] Node 5 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 0 -> Node 2] Node 5 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 0 -> Node 3] Node 5 -> Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 0 -> Node 4] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 0 -> Node 5] Node 5 ARRIVED
+
+[Testing: Node 0 -> Node 6] Node 5 -> Node 6 ARRIVED
+
+[Testing: Node 0 -> Node 7] Node 5 -> Node 6 -> Node 7 ARRIVED
+
+[Testing: Node 0 -> Node 8] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 0 -> Node 9] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 0 -> Node 10] Node 5 -> Node 10 ARRIVED
+
+[Testing: Node 0 -> Node 11] Node 5 -> Node 10 -> Node 11 ARRIVED
+
+[Testing: Node 0 -> Node 12] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 0 -> Node 13] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 0 -> Node 14] Node 5 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 0 -> Node 15] Node 5 -> Node 10 -> Node 15 ARRIVED
+
+[Testing: Node 0 -> Node 16] Node 5 -> Node 10 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 0 -> Node 17] Node 5 -> Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 0 -> Node 18] Node 5 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 0 -> Node 19] Node 5 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 1 -> Node 0] Node 2 -> Node 6 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 1 -> Node 2] Node 2 ARRIVED
+
+[Testing: Node 1 -> Node 3] Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 1 -> Node 4] Node 2 -> Node 3 -> Node 4 ARRIVED
+
+[Testing: Node 1 -> Node 5] Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 1 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 1 -> Node 7] Node 2 -> Node 7 ARRIVED
+
+[Testing: Node 1 -> Node 8] Node 2 -> Node 3 -> Node 8 ARRIVED
+
+[Testing: Node 1 -> Node 9] Node 2 -> Node 6 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 1 -> Node 10] Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 1 -> Node 11] Node 6 -> Node 11 ARRIVED
+
+[Testing: Node 1 -> Node 12] Node 2 -> Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 1 -> Node 13] Node 2 -> Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 1 -> Node 14] Node 2 -> Node 6 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 1 -> Node 15] Node 2 -> Node 6 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 1 -> Node 16] Node 2 -> Node 6 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 1 -> Node 17] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 1 -> Node 18] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 1 -> Node 19] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 2 -> Node 0] Node 6 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 2 -> Node 1] Node 1 ARRIVED
+
+[Testing: Node 2 -> Node 3] Node 3 ARRIVED
+
+[Testing: Node 2 -> Node 4] Node 3 -> Node 4 ARRIVED
+
+[Testing: Node 2 -> Node 5] Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 2 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 2 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 2 -> Node 8] Node 3 -> Node 8 ARRIVED
+
+[Testing: Node 2 -> Node 9] Node 6 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 2 -> Node 10] Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 2 -> Node 11] Node 6 -> Node 11 ARRIVED
+
+[Testing: Node 2 -> Node 12] Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 2 -> Node 13] Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 2 -> Node 14] Node 6 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 2 -> Node 15] Node 6 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 2 -> Node 16] Node 6 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 2 -> Node 17] Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 2 -> Node 18] Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 2 -> Node 19] Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 3 -> Node 0] Node 2 -> Node 6 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 3 -> Node 1] Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 3 -> Node 2] Node 2 ARRIVED
+
+[Testing: Node 3 -> Node 4] Node 4 ARRIVED
+
+[Testing: Node 3 -> Node 5] Node 2 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 3 -> Node 6] Node 2 -> Node 6 ARRIVED
+
+[Testing: Node 3 -> Node 7] Node 2 -> Node 7 ARRIVED
+
+[Testing: Node 3 -> Node 8] Node 8 ARRIVED
+
+[Testing: Node 3 -> Node 9] Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 3 -> Node 10] Node 2 -> Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 3 -> Node 11] Node 2 -> Node 6 -> Node 11 ARRIVED
+
+[Testing: Node 3 -> Node 12] Node 8 -> Node 12 ARRIVED
+
+[Testing: Node 3 -> Node 13] Node 8 -> Node 13 ARRIVED
+
+[Testing: Node 3 -> Node 14] Node 2 -> Node 6 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 3 -> Node 15] Node 2 -> Node 6 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 3 -> Node 16] Node 2 -> Node 6 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 3 -> Node 17] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 3 -> Node 18] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 3 -> Node 19] Node 2 -> Node 6 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 4 -> Node 0] Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 4 -> Node 1] Node 8 -> Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 4 -> Node 2] Node 3 -> Node 2 ARRIVED
+
+[Testing: Node 4 -> Node 3] Node 3 ARRIVED
+
+[Testing: Node 4 -> Node 5] Node 8 -> Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 4 -> Node 6] Node 8 -> Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 4 -> Node 7] Node 8 -> Node 7 ARRIVED
+
+[Testing: Node 4 -> Node 8] Node 8 ARRIVED
+
+[Testing: Node 4 -> Node 9] Node 9 ARRIVED
+
+[Testing: Node 4 -> Node 10] Node 8 -> Node 7 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 4 -> Node 11] Node 8 -> Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 4 -> Node 12] Node 8 -> Node 12 ARRIVED
+
+[Testing: Node 4 -> Node 13] Node 8 -> Node 13 ARRIVED
+
+[Testing: Node 4 -> Node 14] Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 4 -> Node 15] Node 8 -> Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 4 -> Node 16] Node 8 -> Node 7 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 4 -> Node 17] Node 8 -> Node 12 -> Node 17 ARRIVED
+
+[Testing: Node 4 -> Node 18] Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 4 -> Node 19] Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 5 -> Node 0] Node 0 ARRIVED
+
+[Testing: Node 5 -> Node 1] Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 5 -> Node 2] Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 5 -> Node 3] Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 5 -> Node 4] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 5 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 5 -> Node 7] Node 6 -> Node 7 ARRIVED
+
+[Testing: Node 5 -> Node 8] Node 10 -> Node 11 -> Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 5 -> Node 9] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 5 -> Node 10] Node 10 ARRIVED
+
+[Testing: Node 5 -> Node 11] Node 6 -> Node 11 ARRIVED
+
+[Testing: Node 5 -> Node 12] Node 10 -> Node 11 -> Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 5 -> Node 13] Node 10 -> Node 11 -> Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 5 -> Node 14] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 5 -> Node 15] Node 10 -> Node 15 ARRIVED
+
+[Testing: Node 5 -> Node 16] Node 10 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 5 -> Node 17] Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 5 -> Node 18] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 5 -> Node 19] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 6 -> Node 0] Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 6 -> Node 1] Node 1 ARRIVED
+
+[Testing: Node 6 -> Node 2] Node 2 ARRIVED
+
+[Testing: Node 6 -> Node 3] Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 6 -> Node 4] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 6 -> Node 5] Node 5 ARRIVED
+
+[Testing: Node 6 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 6 -> Node 8] Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 6 -> Node 9] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 6 -> Node 10] Node 10 ARRIVED
+
+[Testing: Node 6 -> Node 11] Node 11 ARRIVED
+
+[Testing: Node 6 -> Node 12] Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 6 -> Node 13] Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 6 -> Node 14] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 6 -> Node 15] Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 6 -> Node 16] Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 6 -> Node 17] Node 10 -> Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 6 -> Node 18] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 6 -> Node 19] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 7 -> Node 0] Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 7 -> Node 1] Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 7 -> Node 2] Node 2 ARRIVED
+
+[Testing: Node 7 -> Node 3] Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 7 -> Node 4] Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 7 -> Node 5] Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 7 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 7 -> Node 8] Node 8 ARRIVED
+
+[Testing: Node 7 -> Node 9] Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 7 -> Node 10] Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 7 -> Node 11] Node 11 ARRIVED
+
+[Testing: Node 7 -> Node 12] Node 12 ARRIVED
+
+[Testing: Node 7 -> Node 13] Node 13 ARRIVED
+
+[Testing: Node 7 -> Node 14] Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 7 -> Node 15] Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 7 -> Node 16] Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 7 -> Node 17] Node 12 -> Node 17 ARRIVED
+
+[Testing: Node 7 -> Node 18] Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 7 -> Node 19] Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 8 -> Node 0] Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 8 -> Node 1] Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 8 -> Node 2] Node 3 -> Node 2 ARRIVED
+
+[Testing: Node 8 -> Node 3] Node 3 ARRIVED
+
+[Testing: Node 8 -> Node 4] Node 4 ARRIVED
+
+[Testing: Node 8 -> Node 5] Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 8 -> Node 6] Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 8 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 8 -> Node 9] Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 8 -> Node 10] Node 7 -> Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 8 -> Node 11] Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 8 -> Node 12] Node 12 ARRIVED
+
+[Testing: Node 8 -> Node 13] Node 13 ARRIVED
+
+[Testing: Node 8 -> Node 14] Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 8 -> Node 15] Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 8 -> Node 16] Node 7 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 8 -> Node 17] Node 12 -> Node 17 ARRIVED
+
+[Testing: Node 8 -> Node 18] Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 8 -> Node 19] Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 9 -> Node 0] Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 9 -> Node 1] Node 4 -> Node 8 -> Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 9 -> Node 2] Node 4 -> Node 3 -> Node 2 ARRIVED
+
+[Testing: Node 9 -> Node 3] Node 4 -> Node 3 ARRIVED
+
+[Testing: Node 9 -> Node 4] Node 4 ARRIVED
+
+[Testing: Node 9 -> Node 5] Node 4 -> Node 8 -> Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 9 -> Node 6] Node 4 -> Node 8 -> Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 9 -> Node 7] Node 4 -> Node 8 -> Node 7 ARRIVED
+
+[Testing: Node 9 -> Node 8] Node 4 -> Node 8 ARRIVED
+
+[Testing: Node 9 -> Node 10] Node 4 -> Node 8 -> Node 7 -> Node 6 -> Node 10 ARRIVED
+
+[Testing: Node 9 -> Node 11] Node 4 -> Node 8 -> Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 9 -> Node 12] Node 4 -> Node 8 -> Node 12 ARRIVED
+
+[Testing: Node 9 -> Node 13] Node 4 -> Node 8 -> Node 13 ARRIVED
+
+[Testing: Node 9 -> Node 14] Node 14 ARRIVED
+
+[Testing: Node 9 -> Node 15] Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 9 -> Node 16] Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 9 -> Node 17] Node 4 -> Node 8 -> Node 12 -> Node 17 ARRIVED
+
+[Testing: Node 9 -> Node 18] Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 9 -> Node 19] Node 14 -> Node 19 ARRIVED
+
+[Testing: Node 10 -> Node 0] Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 10 -> Node 1] Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 10 -> Node 2] Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 10 -> Node 3] Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 10 -> Node 4] Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 10 -> Node 5] Node 5 ARRIVED
+
+[Testing: Node 10 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 10 -> Node 7] Node 11 -> Node 7 ARRIVED
+
+[Testing: Node 10 -> Node 8] Node 11 -> Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 10 -> Node 9] Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 10 -> Node 11] Node 11 ARRIVED
+
+[Testing: Node 10 -> Node 12] Node 11 -> Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 10 -> Node 13] Node 11 -> Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 10 -> Node 14] Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 10 -> Node 15] Node 15 ARRIVED
+
+[Testing: Node 10 -> Node 16] Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 10 -> Node 17] Node 15 -> Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 10 -> Node 18] Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 10 -> Node 19] Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 11 -> Node 0] Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 11 -> Node 1] Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 11 -> Node 2] Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 11 -> Node 3] Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 11 -> Node 4] Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 11 -> Node 5] Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 11 -> Node 6] Node 6 ARRIVED
+
+[Testing: Node 11 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 11 -> Node 8] Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 11 -> Node 9] Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 11 -> Node 10] Node 10 ARRIVED
+
+[Testing: Node 11 -> Node 12] Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 11 -> Node 13] Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 11 -> Node 14] Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 11 -> Node 15] Node 15 ARRIVED
+
+[Testing: Node 11 -> Node 16] Node 16 ARRIVED
+
+[Testing: Node 11 -> Node 17] Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 11 -> Node 18] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 11 -> Node 19] Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 12 -> Node 0] Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 12 -> Node 1] Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 12 -> Node 2] Node 7 -> Node 2 ARRIVED
+
+[Testing: Node 12 -> Node 3] Node 8 -> Node 3 ARRIVED
+
+[Testing: Node 12 -> Node 4] Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 12 -> Node 5] Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 12 -> Node 6] Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 12 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 12 -> Node 8] Node 8 ARRIVED
+
+[Testing: Node 12 -> Node 9] Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 12 -> Node 10] Node 7 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 12 -> Node 11] Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 12 -> Node 13] Node 13 ARRIVED
+
+[Testing: Node 12 -> Node 14] Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 12 -> Node 15] Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 12 -> Node 16] Node 17 -> Node 16 ARRIVED
+
+[Testing: Node 12 -> Node 17] Node 17 ARRIVED
+
+[Testing: Node 12 -> Node 18] Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 12 -> Node 19] Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 13 -> Node 0] Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 13 -> Node 1] Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 13 -> Node 2] Node 7 -> Node 2 ARRIVED
+
+[Testing: Node 13 -> Node 3] Node 8 -> Node 3 ARRIVED
+
+[Testing: Node 13 -> Node 4] Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 13 -> Node 5] Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 13 -> Node 6] Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 13 -> Node 7] Node 7 ARRIVED
+
+[Testing: Node 13 -> Node 8] Node 8 ARRIVED
+
+[Testing: Node 13 -> Node 9] Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 13 -> Node 10] Node 7 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 13 -> Node 11] Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 13 -> Node 12] Node 12 ARRIVED
+
+[Testing: Node 13 -> Node 14] Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 13 -> Node 15] Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 13 -> Node 16] Node 17 -> Node 16 ARRIVED
+
+[Testing: Node 13 -> Node 17] Node 17 ARRIVED
+
+[Testing: Node 13 -> Node 18] Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 13 -> Node 19] Node 7 -> Node 11 -> Node 10 -> Node 15 -> Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 14 -> Node 0] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 14 -> Node 1] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 2 -> Node 1 ARRIVED
+
+[Testing: Node 14 -> Node 2] Node 9 -> Node 4 -> Node 3 -> Node 2 ARRIVED
+
+[Testing: Node 14 -> Node 3] Node 9 -> Node 4 -> Node 3 ARRIVED
+
+[Testing: Node 14 -> Node 4] Node 9 -> Node 4 ARRIVED
+
+[Testing: Node 14 -> Node 5] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 6 -> Node 5 ARRIVED
+
+[Testing: Node 14 -> Node 6] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 6 ARRIVED
+
+[Testing: Node 14 -> Node 7] Node 9 -> Node 4 -> Node 8 -> Node 7 ARRIVED
+
+[Testing: Node 14 -> Node 8] Node 9 -> Node 4 -> Node 8 ARRIVED
+
+[Testing: Node 14 -> Node 9] Node 9 ARRIVED
+
+[Testing: Node 14 -> Node 10] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 14 -> Node 11] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 11 ARRIVED
+
+[Testing: Node 14 -> Node 12] Node 9 -> Node 4 -> Node 8 -> Node 12 ARRIVED
+
+[Testing: Node 14 -> Node 13] Node 9 -> Node 4 -> Node 8 -> Node 13 ARRIVED
+
+[Testing: Node 14 -> Node 15] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 15 ARRIVED
+
+[Testing: Node 14 -> Node 16] Node 9 -> Node 4 -> Node 8 -> Node 7 -> Node 11 -> Node 16 ARRIVED
+
+[Testing: Node 14 -> Node 17] Node 9 -> Node 4 -> Node 8 -> Node 12 -> Node 17 ARRIVED
+
+[Testing: Node 14 -> Node 18] Node 19 -> Node 18 ARRIVED
+
+[Testing: Node 14 -> Node 19] Node 19 ARRIVED
+
+[Testing: Node 15 -> Node 0] Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 15 -> Node 1] Node 10 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 15 -> Node 2] Node 10 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 15 -> Node 3] Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 15 -> Node 4] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 15 -> Node 5] Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 15 -> Node 6] Node 11 -> Node 6 ARRIVED
+
+[Testing: Node 15 -> Node 7] Node 11 -> Node 7 ARRIVED
+
+[Testing: Node 15 -> Node 8] Node 10 -> Node 11 -> Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 15 -> Node 9] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 15 -> Node 10] Node 10 ARRIVED
+
+[Testing: Node 15 -> Node 11] Node 11 ARRIVED
+
+[Testing: Node 15 -> Node 12] Node 10 -> Node 11 -> Node 7 -> Node 12 ARRIVED
+
+[Testing: Node 15 -> Node 13] Node 10 -> Node 11 -> Node 7 -> Node 13 ARRIVED
+
+[Testing: Node 15 -> Node 14] Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 15 -> Node 16] Node 16 ARRIVED
+
+[Testing: Node 15 -> Node 17] Node 16 -> Node 17 ARRIVED
+
+[Testing: Node 15 -> Node 18] Node 16 -> Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 15 -> Node 19] Node 16 -> Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 16 -> Node 0] Node 15 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 16 -> Node 1] Node 15 -> Node 10 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 16 -> Node 2] Node 15 -> Node 10 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 16 -> Node 3] Node 15 -> Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 16 -> Node 4] Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 16 -> Node 5] Node 15 -> Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 16 -> Node 6] Node 11 -> Node 6 ARRIVED
+
+[Testing: Node 16 -> Node 7] Node 11 -> Node 7 ARRIVED
+
+[Testing: Node 16 -> Node 8] Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 ARRIVED
+
+[Testing: Node 16 -> Node 9] Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 16 -> Node 10] Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 16 -> Node 11] Node 11 ARRIVED
+
+[Testing: Node 16 -> Node 12] Node 17 -> Node 12 ARRIVED
+
+[Testing: Node 16 -> Node 13] Node 17 -> Node 13 ARRIVED
+
+[Testing: Node 16 -> Node 14] Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 16 -> Node 15] Node 15 ARRIVED
+
+[Testing: Node 16 -> Node 17] Node 17 ARRIVED
+
+[Testing: Node 16 -> Node 18] Node 17 -> Node 18 ARRIVED
+
+[Testing: Node 16 -> Node 19] Node 17 -> Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 17 -> Node 0] Node 16 -> Node 15 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 17 -> Node 1] Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 17 -> Node 2] Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 17 -> Node 3] Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 17 -> Node 4] Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 17 -> Node 5] Node 16 -> Node 15 -> Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 17 -> Node 6] Node 16 -> Node 11 -> Node 6 ARRIVED
+
+[Testing: Node 17 -> Node 7] Node 12 -> Node 7 ARRIVED
+
+[Testing: Node 17 -> Node 8] Node 12 -> Node 8 ARRIVED
+
+[Testing: Node 17 -> Node 9] Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 17 -> Node 10] Node 16 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 17 -> Node 11] Node 16 -> Node 11 ARRIVED
+
+[Testing: Node 17 -> Node 12] Node 12 ARRIVED
+
+[Testing: Node 17 -> Node 13] Node 13 ARRIVED
+
+[Testing: Node 17 -> Node 14] Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 -> Node 14 ARRIVED
+
+[Testing: Node 17 -> Node 15] Node 16 -> Node 15 ARRIVED
+
+[Testing: Node 17 -> Node 16] Node 16 ARRIVED
+
+[Testing: Node 17 -> Node 18] Node 18 ARRIVED
+
+[Testing: Node 17 -> Node 19] Node 18 -> Node 19 ARRIVED
+
+[Testing: Node 18 -> Node 0] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 18 -> Node 1] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 18 -> Node 2] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 18 -> Node 3] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 18 -> Node 4] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 18 -> Node 5] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 18 -> Node 6] Node 17 -> Node 16 -> Node 11 -> Node 6 ARRIVED
+
+[Testing: Node 18 -> Node 7] Node 17 -> Node 12 -> Node 7 ARRIVED
+
+[Testing: Node 18 -> Node 8] Node 17 -> Node 12 -> Node 8 ARRIVED
+
+[Testing: Node 18 -> Node 9] Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 -> Node 9 ARRIVED
+
+[Testing: Node 18 -> Node 10] Node 17 -> Node 16 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 18 -> Node 11] Node 17 -> Node 16 -> Node 11 ARRIVED
+
+[Testing: Node 18 -> Node 12] Node 17 -> Node 12 ARRIVED
+
+[Testing: Node 18 -> Node 13] Node 17 -> Node 13 ARRIVED
+
+[Testing: Node 18 -> Node 14] Node 19 -> Node 14 ARRIVED
+
+[Testing: Node 18 -> Node 15] Node 17 -> Node 16 -> Node 15 ARRIVED
+
+[Testing: Node 18 -> Node 16] Node 17 -> Node 16 ARRIVED
+
+[Testing: Node 18 -> Node 17] Node 17 ARRIVED
+
+[Testing: Node 18 -> Node 19] Node 19 ARRIVED
+
+[Testing: Node 19 -> Node 0] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 5 -> Node 0 ARRIVED
+
+[Testing: Node 19 -> Node 1] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 1 ARRIVED
+
+[Testing: Node 19 -> Node 2] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 ARRIVED
+
+[Testing: Node 19 -> Node 3] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 6 -> Node 2 -> Node 3 ARRIVED
+
+[Testing: Node 19 -> Node 4] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 11 -> Node 7 -> Node 8 -> Node 4 ARRIVED
+
+[Testing: Node 19 -> Node 5] Node 18 -> Node 17 -> Node 16 -> Node 15 -> Node 10 -> Node 5 ARRIVED
+
+[Testing: Node 19 -> Node 6] Node 18 -> Node 17 -> Node 16 -> Node 11 -> Node 6 ARRIVED
+
+[Testing: Node 19 -> Node 7] Node 18 -> Node 17 -> Node 12 -> Node 7 ARRIVED
+
+[Testing: Node 19 -> Node 8] Node 18 -> Node 17 -> Node 12 -> Node 8 ARRIVED
+
+[Testing: Node 19 -> Node 9] Node 14 -> Node 9 ARRIVED
+
+[Testing: Node 19 -> Node 10] Node 18 -> Node 17 -> Node 16 -> Node 11 -> Node 10 ARRIVED
+
+[Testing: Node 19 -> Node 11] Node 18 -> Node 17 -> Node 16 -> Node 11 ARRIVED
+
+[Testing: Node 19 -> Node 12] Node 18 -> Node 17 -> Node 12 ARRIVED
+
+[Testing: Node 19 -> Node 13] Node 18 -> Node 17 -> Node 13 ARRIVED
+
+[Testing: Node 19 -> Node 14] Node 14 ARRIVED
+
+[Testing: Node 19 -> Node 15] Node 18 -> Node 17 -> Node 16 -> Node 15 ARRIVED
+
+[Testing: Node 19 -> Node 16] Node 18 -> Node 17 -> Node 16 ARRIVED
+
+[Testing: Node 19 -> Node 17] Node 18 -> Node 17 ARRIVED
+
+[Testing: Node 19 -> Node 18] 
+============================================================
+All 380 test messages completed at time 900.7!
+============================================================
+
+
+======================================================================
+NEIGHBOR TABLES FOR ALL NODES
+======================================================================
+
+Node 0 Neighbor Table:
+  1-hop: [5]
+  2-hop: 6(via 5) 10(via 5) 
+
+Node 1 Neighbor Table:
+  1-hop: [2, 6]
+  2-hop: 3(via 2) 5(via 6) 7(via 2) 10(via 6) 11(via 6) 
+
+Node 2 Neighbor Table:
+  1-hop: [1, 3, 6, 7]
+  2-hop: 4(via 3) 5(via 6) 8(via 3) 10(via 6) 11(via 6) 12(via 7) 13(via 7) 
+
+Node 3 Neighbor Table:
+  1-hop: [2, 4, 8]
+  2-hop: 1(via 2) 6(via 2) 7(via 2) 9(via 4) 12(via 8) 13(via 8) 
+
+Node 4 Neighbor Table:
+  1-hop: [3, 8, 9]
+  2-hop: 2(via 3) 7(via 8) 12(via 8) 13(via 8) 14(via 9) 
+
+Node 5 Neighbor Table:
+  1-hop: [0, 6, 10]
+  2-hop: 1(via 6) 2(via 6) 7(via 6) 11(via 10) 15(via 10) 
+
+Node 6 Neighbor Table:
+  1-hop: [1, 2, 5, 7, 10, 11]
+  2-hop: 0(via 5) 3(via 2) 8(via 7) 12(via 7) 13(via 7) 15(via 10) 16(via 11) 
+
+Node 7 Neighbor Table:
+  1-hop: [2, 6, 8, 11, 12, 13]
+  2-hop: 1(via 2) 3(via 2) 4(via 8) 5(via 6) 10(via 6) 15(via 11) 16(via 11) 17(via 12) 
+
+Node 8 Neighbor Table:
+  1-hop: [3, 4, 7, 12, 13]
+  2-hop: 2(via 3) 6(via 7) 9(via 4) 11(via 7) 17(via 12) 
+
+Node 9 Neighbor Table:
+  1-hop: [4, 14]
+  2-hop: 3(via 4) 8(via 4) 19(via 14) 
+
+Node 10 Neighbor Table:
+  1-hop: [5, 6, 11, 15]
+  2-hop: 0(via 5) 1(via 6) 2(via 6) 7(via 6) 16(via 11) 
+
+Node 11 Neighbor Table:
+  1-hop: [6, 7, 10, 15, 16]
+  2-hop: 1(via 6) 2(via 6) 5(via 10) 8(via 7) 12(via 7) 13(via 7) 17(via 16) 
+
+Node 12 Neighbor Table:
+  1-hop: [7, 8, 13, 17]
+  2-hop: 2(via 7) 3(via 8) 4(via 8) 6(via 7) 11(via 7) 16(via 17) 18(via 17) 
+
+Node 13 Neighbor Table:
+  1-hop: [7, 8, 12, 17]
+  2-hop: 2(via 7) 3(via 8) 4(via 8) 6(via 7) 11(via 7) 16(via 17) 18(via 17) 
+
+Node 14 Neighbor Table:
+  1-hop: [9, 19]
+  2-hop: 4(via 9) 18(via 19) 
+
+Node 15 Neighbor Table:
+  1-hop: [10, 11, 16]
+  2-hop: 5(via 10) 6(via 10) 7(via 11) 17(via 16) 
+
+Node 16 Neighbor Table:
+  1-hop: [11, 15, 17]
+  2-hop: 6(via 11) 7(via 11) 10(via 11) 12(via 17) 13(via 17) 18(via 17) 
+
+Node 17 Neighbor Table:
+  1-hop: [12, 13, 16, 18]
+  2-hop: 7(via 12) 8(via 12) 11(via 16) 15(via 16) 19(via 18) 
+
+Node 18 Neighbor Table:
+  1-hop: [17, 19]
+  2-hop: 12(via 17) 13(via 17) 14(via 19) 16(via 17) 
+
+Node 19 Neighbor Table:
+  1-hop: [14, 18]
+  2-hop: 9(via 14) 17(via 18) 
+======================================================================
+

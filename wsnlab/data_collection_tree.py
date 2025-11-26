@@ -19,6 +19,10 @@ CLUSTER_HEADS = []
 ROLE_COUNTS = Counter()  
 NEIGHBOR_VALIDITY_TIMEOUT = 300
 
+# Tracking Info
+PACKET_LOGS = []
+JOIN_TIMES = []
+
 def _addr_str(a): return "" if a is None else str(a)
 def _role_name(r): return r.name if hasattr(r, "name") else str(r)
 
@@ -124,7 +128,9 @@ class SensorNode(wsn.Node):
         self.pending_promotions = set()
         self.changeRole = True
         self.test_queue = [] 
-        self.test_index = 0   
+        self.test_index = 0  
+        self.test_output_file = None
+        self.probe_start_time = None 
 
 
     ###################
@@ -299,7 +305,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.send({'dest': wsn.BROADCAST_ADDR, 'gui': self.id,'type': 'PROBE'})
+        self.send({'dest': wsn.BROADCAST_ADDR, 'gui': self.id,'type': 'PROBE', 'creation_time': self.now})
 
     ###################
     def send_heart_beat(self):
@@ -322,7 +328,8 @@ class SensorNode(wsn.Node):
                    'addr': self.addr,
                    'ch_addr': self.ch_addr,
                    'hop_count': self.hop_count,
-                   'neighbors': one_hop_neighbors})
+                   'neighbors': one_hop_neighbors,
+                   'creation_time': self.now})
 
     ###################
     def send_join_request(self, dest):
@@ -333,7 +340,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.send({'dest': dest, 'type': 'JOIN_REQUEST', 'gui': self.id})
+        self.send({'dest': dest, 'type': 'JOIN_REQUEST', 'gui': self.id, 'creation_time': self.now})
 
     ###################
     def send_join_reply(self, gui, addr):
@@ -349,7 +356,7 @@ class SensorNode(wsn.Node):
         """
         self.send({'dest': wsn.BROADCAST_ADDR, 'type': 'JOIN_REPLY', 'source': self.ch_addr,
                    'gui': self.id, 'dest_gui': gui, 'addr': addr, 'root_addr': self.root_addr,
-                   'hop_count': self.hop_count+1})
+                   'hop_count': self.hop_count+1, 'creation_time': self.now})
 
     ###################
     def send_join_ack(self, dest):
@@ -361,7 +368,7 @@ class SensorNode(wsn.Node):
 
         """
         self.send({'dest': dest, 'type': 'JOIN_ACK', 'source': self.addr,
-                   'gui': self.id})
+                   'gui': self.id, 'creation_time': self.now})
 
     def print_all_neighbor_tables(self):
         """Print neighbor tables for ALL nodes in the simulation"""
@@ -505,7 +512,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.route_and_forward_package({'dest': self.root_addr, 'type': 'NETWORK_REQUEST', 'source': self.addr})
+        self.route_and_forward_package({'dest': self.root_addr, 'type': 'NETWORK_REQUEST', 'source': self.addr, 'creation_time': self.now})
 
     ###################
     def send_network_reply(self, dest, addr):
@@ -518,7 +525,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.route_and_forward_package({'dest': dest, 'type': 'NETWORK_REPLY', 'source': self.addr, 'addr': addr})
+        self.route_and_forward_package({'dest': dest, 'type': 'NETWORK_REPLY', 'source': self.addr, 'addr': addr, 'creation_time': self.now})
 
     ###################
     
@@ -546,7 +553,8 @@ class SensorNode(wsn.Node):
             'source': self.addr,
             'gui': self.id, 
             'child_networks': child_networks, 
-            'child_chs': all_child_chs  
+            'child_chs': all_child_chs,
+            'creation_time': self.now  
         })
 
     def send_test_message(self, dest_id, message_content):
@@ -558,10 +566,10 @@ class SensorNode(wsn.Node):
                 break
         
         if dest_node is None or dest_node.addr is None:
-            print(f"✗ Cannot send from Node {self.id} to Node {dest_id}: Destination not found or not registered")
+            print(f"Cannot send from Node {self.id} to Node {dest_id}: Destination not found or not registered")
             return
         
-        print(f"\n[Testing: Node {self.id} → Node {dest_id}] ", end='')
+        print(f"\n[Testing: Node {self.id} -> Node {dest_id}] ", end='')
 
         self.route_and_forward_package({
             'dest': dest_node.addr,
@@ -573,12 +581,24 @@ class SensorNode(wsn.Node):
                 'dest_id': dest_id,
                 'path': [self.id],
                 'routing_method': ['START']
-            }
+            },
+            'creation_time': self.now
         })
 
     ###################
     def on_receive(self, pck):
         """Executes when a package received."""
+
+        if 'creation_time' in pck:
+            delay = self.now - pck['creation_time']
+            PACKET_LOGS.append({
+                'type': pck['type'],
+                'source': pck.get('gui', 'unknown'),
+                'dest': self.id,
+                'creation_time': pck['creation_time'],
+                'arrival_time': self.now,
+                'delay': delay
+            })
 
         if pck['type'] == 'TEST_MESSAGE':
             if 'path_info' in pck:
@@ -742,6 +762,14 @@ class SensorNode(wsn.Node):
             if pck['type'] == 'JOIN_REPLY':
                 self.kill_timer('TIMER_PROBE')
                 if pck['dest_gui'] == self.id:
+                    # Record join time
+                    if self.probe_start_time:
+                        join_delay = self.now - self.probe_start_time
+                        JOIN_TIMES.append({
+                            'node_id': self.id,
+                            'join_delay': join_delay
+                        })
+                if pck['dest_gui'] == self.id:
                     self.addr = pck['addr']
                     self.parent_gui = pck['gui']
                     self.root_addr = pck['root_addr']
@@ -772,9 +800,10 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        if name == 'TIMER_ARRIVAL':  # it wakes up and set timer probe once time arrival timer fired
-            self.scene.nodecolor(self.id, 1, 0, 0)  # sets self color to red
+        if name == 'TIMER_ARRIVAL':
+            self.scene.nodecolor(self.id, 1, 0, 0)
             self.wake_up()
+            self.probe_start_time = self.now
             self.set_timer('TIMER_PROBE', 1)
 
         elif name == 'TIMER_PROBE':  # it sends probe if counter didn't reach the threshold once timer probe fired.
@@ -791,7 +820,7 @@ class SensorNode(wsn.Node):
                     self.root_addr = self.addr
                     self.hop_count = 0
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
-                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION - 8000)
+                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION - 300)
                 else:  # otherwise it keeps trying to sending probe after a long time
                     self.c_probe = 0
                     self.set_timer('TIMER_PROBE', 30)
@@ -825,6 +854,13 @@ class SensorNode(wsn.Node):
 
         elif name == 'TIMER_RUN_TESTS':
             if self.role == Roles.ROOT:
+                # Open file for all test output
+                self.test_output_file = open("routing_tests_and_tables.txt", "w")
+                
+                import sys
+                original_stdout = sys.stdout
+                sys.stdout = self.test_output_file  # Redirect all print statements to file
+                
                 print("\n" + "="*60)
                 print(f"ROUTING TEST - Running at time {self.now}")
                 print("="*60)
@@ -836,6 +872,8 @@ class SensorNode(wsn.Node):
                 
                 if len(registered_nodes) < 2:
                     print("Error: Need at least 2 registered nodes")
+                    sys.stdout = original_stdout
+                    self.test_output_file.close()
                     return
                 
                 # Build test queue
@@ -851,6 +889,11 @@ class SensorNode(wsn.Node):
                 print(f"Testing all {total_tests} routes sequentially...")
                 print("="*60)
                 
+                # Don't restore stdout yet - keep writing to file
+                sys.stdout = original_stdout  # Restore temporarily for console feedback
+                print(f"Starting {total_tests} tests - writing to routing_tests_and_tables.txt")
+                sys.stdout = self.test_output_file  # Back to file
+                
                 # Start the first test
                 self.test_index = 0
                 self.set_timer('TIMER_NEXT_TEST', 0.1)
@@ -864,12 +907,24 @@ class SensorNode(wsn.Node):
                 
                 # Schedule next test after a short delay
                 if self.test_index < len(self.test_queue):
-                    self.set_timer('TIMER_NEXT_TEST', 0.5)  # 0.5 second delay between tests
+                    self.set_timer('TIMER_NEXT_TEST', 0.5)
                 else:
+                    import sys
+                    
+                    # Still writing to file
                     print(f"\n{'='*60}")
                     print(f"All {len(self.test_queue)} test messages completed at time {self.now}!")
                     print(f"{'='*60}\n")
+                    
+                    # Print neighbor tables to file
                     self.print_all_neighbor_tables()
+                    
+                    # Close file and restore stdout
+                    self.test_output_file.close()
+                    
+                    # Print confirmation to console
+                    sys.stdout = sys.__stdout__  # Restore to original stdout
+                    print(f"\nAll tests complete! Results saved to routing_tests_and_tables.txt")
 
 
 
@@ -961,7 +1016,7 @@ def write_neighbor_distances_csv(path="neighbor_distances.csv", dedupe_undirecte
 
             x1, y1 = NODE_POS.get(node.id, (None, None))
             if x1 is None:
-                continue  # no position → cannot compute distance
+                continue 
 
             # neighbors_table: key = neighbor GUI, value = heartbeat packet dict
             for n_gui, pck in getattr(node, "neighbors_table", {}).items():
@@ -1034,6 +1089,28 @@ print("Simulation Finished")
 
 import time
 time.sleep(1)
+
+# Export packet delays
+with open("packet_delays.csv", "w") as f:
+    f.write("packet_type,source,dest,creation_time,arrival_time,delay_ms\n")
+    for log in PACKET_LOGS:
+        f.write(f"{log['type']},{log['source']},{log['dest']},{log['creation_time']:.3f},{log['arrival_time']:.3f},{log['delay']:.3f}\n")
+
+# Export join times
+with open("join_times.csv", "w") as f:
+    f.write("node_id,join_delay_ms\n")
+    for jt in JOIN_TIMES:
+        f.write(f"{jt['node_id']},{jt['join_delay']:.3f}\n")
+
+# Print summary
+if JOIN_TIMES:
+    avg_join = sum(j['join_delay'] for j in JOIN_TIMES) / len(JOIN_TIMES)
+    print(f"\nAverage Join Time: {avg_join:.3f} ms")
+
+if PACKET_LOGS:
+    avg_delay = sum(p['delay'] for p in PACKET_LOGS) / len(PACKET_LOGS)
+    print(f"Average Packet Delay: {avg_delay:.3f} ms")
+    print(f"Total Packets Logged: {len(PACKET_LOGS)}")
 
 #test_all_registered_nodes()
 
