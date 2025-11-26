@@ -126,6 +126,7 @@ class SensorNode(wsn.Node):
         self.received_probes = {}
         self.become_router = False
         self.pending_promotions = set()
+        self.can_promote = False
         self.changeRole = True
         self.test_queue = [] 
         self.test_index = 0  
@@ -685,9 +686,6 @@ class SensorNode(wsn.Node):
                     self.send(promote_packet)
                     self.pending_promotions.remove(sender)
             
-            if pck['type'] == 'PROBE':
-                self.send_heart_beat()
-            
             if pck['type'] == 'JOIN_REQUEST':
                 sender_gui = pck['gui']
                 if sender_gui in self.neighbors_table:
@@ -727,12 +725,14 @@ class SensorNode(wsn.Node):
                 elif (self.received_probes[sender] < 3):
                     self.received_probes[sender] += 1
                 if (self.received_probes[sender] >= 3):
-                    self.becomeRouter = True
-                    self.send_heart_beat()
+                    if self.can_promote:
+                        self.becomeRouter = True
+                        self.send_heart_beat()
                 
             if pck['type'] == 'JOIN_REQUEST':
-                self.received_JR_guis.append(pck['gui'])
-                self.send_network_request()
+                if self.can_promote:
+                    self.received_JR_guis.append(pck['gui'])
+                    self.send_network_request()
             if pck['type'] == 'NETWORK_REPLY':
                 self.set_role(Roles.CLUSTER_HEAD)
                 try:
@@ -769,7 +769,7 @@ class SensorNode(wsn.Node):
                             'node_id': self.id,
                             'join_delay': join_delay
                         })
-                if pck['dest_gui'] == self.id:
+                    
                     self.addr = pck['addr']
                     self.parent_gui = pck['gui']
                     self.root_addr = pck['root_addr']
@@ -779,11 +779,16 @@ class SensorNode(wsn.Node):
                     self.send_heart_beat()
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
                     self.send_join_ack(pck['source'])
+                    
                     if self.ch_addr is not None:
                         self.set_role(Roles.CLUSTER_HEAD)
                         self.send_network_update()
+                        self.can_promote = True
                     else:
                         self.set_role(Roles.REGISTERED)
+                        # REGISTERED nodes must wait before they can promote to
+                        self.can_promote = False
+                        self.set_timer('TIMER_PROMOTION_COOLDOWN', 10) 
                         # # sensor implementation
                         # timer_duration =  self.id % 20
                         # if timer_duration == 0: timer_duration = 1
@@ -820,7 +825,7 @@ class SensorNode(wsn.Node):
                     self.root_addr = self.addr
                     self.hop_count = 0
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
-                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION - 300)
+                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION / 4)
                 else:  # otherwise it keeps trying to sending probe after a long time
                     self.c_probe = 0
                     self.set_timer('TIMER_PROBE', 30)
@@ -926,6 +931,8 @@ class SensorNode(wsn.Node):
                     sys.stdout = sys.__stdout__  # Restore to original stdout
                     print(f"\nAll tests complete! Results saved to routing_tests_and_tables.txt")
 
+        elif name == 'TIMER_PROMOTION_COOLDOWN':
+            self.can_promote = True
 
 
 ROOT_ID = random.randrange(config.SIM_NODE_COUNT)  # 0..count-1
