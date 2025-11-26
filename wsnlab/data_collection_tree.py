@@ -1,13 +1,83 @@
 import random
 from enum import Enum
 import sys
-# insert at 1, 0 is the script path (or '' in REPL)
 sys.path.insert(1, '.')
 from source import wsnlab_vis as wsn
 import math
 from source import config
+from collections import Counter
 
-Roles = Enum('Roles', 'UNDISCOVERED UNREGISTERED ROOT REGISTERED CLUSTER_HEAD')
+
+import csv 
+
+# Track where each node is placed
+NODE_POS = {}  # {node_id: (x, y)}
+
+# --- tracking containers ---
+ALL_NODES = []            
+CLUSTER_HEADS = []
+ROLE_COUNTS = Counter()  
+NEIGHBOR_VALIDITY_TIMEOUT = 300
+
+def _addr_str(a): return "" if a is None else str(a)
+def _role_name(r): return r.name if hasattr(r, "name") else str(r)
+
+def test_all_registered_nodes():
+    """Test message routing between ALL registered nodes"""
+    print("\n" + "="*60)
+    print("AUTOMATIC ALL-PAIRS NEIGHBOR TABLE TESTING")
+    print("="*60)
+    
+    registered_nodes = []
+    for node in sim.nodes:
+        if hasattr(node, 'addr') and node.addr is not None:
+            registered_nodes.append(node)
+    
+    if len(registered_nodes) < 2:
+        print("Error: Need at least 2 registered nodes")
+        return
+    
+    print(f"\nFound {len(registered_nodes)} registered nodes")
+    print(f"Testing {len(registered_nodes) * (len(registered_nodes) - 1)} routes...")
+    print("-" * 60)
+    
+    test_count = 0
+    reachable_count = 0
+    out_of_range_count = 0
+    
+    for source_node in registered_nodes:
+        for dest_node in registered_nodes:
+            if source_node.id == dest_node.id:
+                continue
+            
+            test_count += 1
+            print(f"\nTest {test_count}: Node {source_node.id} → Node {dest_node.id}")
+            
+            # Check if in neighbor table
+            if dest_node.id in source_node.neighbors_table:
+                neighbor_info = source_node.neighbors_table[dest_node.id]
+                next_hop = neighbor_info.get('next_hop')
+                
+                if next_hop is None:
+                    print(f"  Range: DIRECT (1-hop)")
+                    reachable_count += 1
+                else:
+                    print(f"  Range: 2-hop via Node {next_hop}")
+                    reachable_count += 1
+                
+                source_node.send_test_message(dest_node.id, f"Test #{test_count}")
+            else:
+                print(f"  Range: OUT OF RANGE (not in neighbor table)")
+                out_of_range_count += 1
+    
+    print("\n" + "="*60)
+    print(f"TESTING COMPLETE")
+    print(f"  Total tests: {test_count}")
+    print(f"  Reachable: {reachable_count}")
+    print(f"  Out of range: {out_of_range_count}")
+    print("="*60)
+
+Roles = Enum('Roles', 'UNDISCOVERED UNREGISTERED ROOT REGISTERED CLUSTER_HEAD ROUTER')
 """Enumeration of roles"""
 
 ###########################################################
@@ -33,22 +103,29 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.scene.nodecolor(self.id, 1, 1, 1) # sets self color to white
+        self.scene.nodecolor(self.id, 1, 1, 1) 
         self.sleep()
         self.addr = None
         self.ch_addr = None
         self.parent_gui = None
         self.root_addr = None
-        self.role = Roles.UNDISCOVERED
+        self.set_role(Roles.UNDISCOVERED)
         self.is_root_eligible = True if self.id == ROOT_ID else False
-        self.c_probe = 0  # c means counter and probe is the name of counter
-        self.th_probe = 10  # th means threshold and probe is the name of threshold
-        self.hop_count = 99999
-        self.neighbors_table = {}  # keeps neighbor information with received HB messages
+        self.c_probe = 0
+        self.th_probe = 10 
+        self.hop_count = 2
+        self.neighbors_table = {} 
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        self.received_JR_guis = []  # keeps received Join Request global unique ids
+        self.received_JR_guis = [] 
+        self.received_probes = {}
+        self.become_router = False
+        self.pending_promotions = set()
+        self.changeRole = True
+        self.test_queue = [] 
+        self.test_index = 0   
+
 
     ###################
     def run(self):
@@ -62,6 +139,35 @@ class SensorNode(wsn.Node):
         self.set_timer('TIMER_ARRIVAL', self.arrival)
 
     ###################
+
+    def set_role(self, new_role, *, recolor=True):
+        """Central place to switch roles, keep tallies, and (optionally) recolor."""
+        old_role = getattr(self, "role", None)
+        if old_role is not None:
+            ROLE_COUNTS[old_role] -= 1
+            if ROLE_COUNTS[old_role] <= 0:
+                ROLE_COUNTS.pop(old_role, None)
+        ROLE_COUNTS[new_role] += 1
+        self.role = new_role
+
+        if recolor:
+            if new_role == Roles.UNDISCOVERED:
+                self.scene.nodecolor(self.id, 1, 1, 1)
+            elif new_role == Roles.UNREGISTERED:
+                self.scene.nodecolor(self.id, 1, 1, 0)
+            elif new_role == Roles.REGISTERED:
+                self.scene.nodecolor(self.id, 0, 1, 0)
+            elif new_role == Roles.CLUSTER_HEAD:
+                self.scene.nodecolor(self.id, 0, 0, 1)
+                self.draw_tx_range()
+            elif new_role == Roles.ROOT:
+                self.scene.nodecolor(self.id, 0, 0, 0)
+                self.set_timer('TIMER_EXPORT_CH_CSV', config.EXPORT_CH_CSV_INTERVAL)
+                self.set_timer('TIMER_EXPORT_NEIGHBOR_CSV', config.EXPORT_NEIGHBOR_CSV_INTERVAL)
+            elif new_role == Roles.ROUTER:
+                self.scene.nodecolor(self.id, 1, 0, 1)
+                self.erase_tx_range()
+                
     def become_unregistered(self):
         if self.role != Roles.UNDISCOVERED:
             self.kill_all_timers()
@@ -72,34 +178,113 @@ class SensorNode(wsn.Node):
         self.ch_addr = None
         self.parent_gui = None
         self.root_addr = None
-        self.role = Roles.UNREGISTERED
+        self.set_role(Roles.UNREGISTERED)
         self.c_probe = 0
         self.th_probe = 10
-        self.hop_count = 99999
+        self.hop_count = 2
         self.neighbors_table = {}
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        self.received_JR_guis = []  # keeps received Join Request global unique ids
+        self.received_JR_guis = []  
         self.send_probe()
         self.set_timer('TIMER_JOIN_REQUEST', 20)
 
     ###################
     def update_neighbor(self, pck):
-        pck['arrival_time'] = self.now
-        self.neighbors_table[pck['gui']] = pck
-        if pck['gui'] not in self.child_networks_table.keys() or pck['gui'] not in self.members_table:
-            if pck['gui'] not in self.candidate_parents_table:
-                self.candidate_parents_table.append(pck['gui'])
+        sender_gui = pck['gui']
+        sender_addr = pck.get('addr')
+        sender_hop_count = pck.get('hop_count', 0)
+        sender_role = pck.get('role') 
+   
+        self.neighbors_table[sender_gui] = {
+            'addr': sender_addr,
+            'hop_count': sender_hop_count,
+            'source': pck.get('source'),
+            'ch_addr': pck.get('ch_addr'),
+            'role': sender_role,
+            'last_heard': self.now,
+            'next_hop': None
+        }
+
+        sender_neighbors = pck.get('neighbors', [])
+        for neighbor_of_sender in sender_neighbors:
+            if neighbor_of_sender == self.id:
+                continue
+            
+            existing = self.neighbors_table.get(neighbor_of_sender)
+            if existing and existing.get('next_hop') is None:
+                continue
+
+            neighbor_addr = None
+            for node in sim.nodes:
+                if node.id == neighbor_of_sender and hasattr(node, 'addr'):
+                    neighbor_addr = node.addr
+                    break
+            
+            self.neighbors_table[neighbor_of_sender] = {
+                'addr': neighbor_addr,
+                'hop_count': sender_hop_count + 1,
+                'last_heard': self.now,
+                'next_hop': sender_gui,
+                'role': None  
+            }
+        if sender_addr is not None: 
+            if sender_gui not in self.members_table:  
+                if sender_gui not in self.candidate_parents_table:
+                    self.candidate_parents_table.append(sender_gui)
+
+
+    def get_neighbor_status(self, gui):
+        """Get neighbor info with validity status."""
+        if gui not in self.neighbors_table:
+            return None
+        
+        entry = self.neighbors_table[gui]
+        time_since_heard = self.now - entry['last_heard']
+        is_valid = time_since_heard <= NEIGHBOR_VALIDITY_TIMEOUT
+        
+        return {
+            'addr': entry['addr'],
+            'last_heard': entry['last_heard'],
+            'valid': is_valid,
+            'next_hop': entry['next_hop']
+        }
+
+    def get_neighbors_with_validity(self):
+        """Get all neighbors with validity status."""
+        result = {}
+        for gui, entry in self.neighbors_table.items():
+            time_since_heard = self.now - entry['last_heard']
+            is_valid = time_since_heard <= NEIGHBOR_VALIDITY_TIMEOUT
+            result[gui] = {
+                'addr': entry['addr'],
+                'last_heard': entry['last_heard'],
+                'valid': is_valid,
+                'next_hop': entry['next_hop']
+            }
+        return result
 
     ###################
     def select_and_join(self):
         min_hop = 99999
         min_hop_gui = 99999
+
+        non_router_candidates = []
         for gui in self.candidate_parents_table:
-            if self.neighbors_table[gui]['hop_count'] < min_hop or (self.neighbors_table[gui]['hop_count'] == min_hop and gui < min_hop_gui):
-                min_hop = self.neighbors_table[gui]['hop_count']
+            neighbor = self.neighbors_table.get(gui)
+            if neighbor and neighbor.get('role') != Roles.ROUTER:
+                non_router_candidates.append(gui)
+
+        candidates = non_router_candidates if non_router_candidates else self.candidate_parents_table
+        
+        for gui in candidates:
+            neighbor = self.neighbors_table[gui]
+            if neighbor['hop_count'] < min_hop or \
+            (neighbor['hop_count'] == min_hop and gui < min_hop_gui):
+                min_hop = neighbor['hop_count']
                 min_hop_gui = gui
+        
         selected_addr = self.neighbors_table[min_hop_gui]['source']
         self.send_join_request(selected_addr)
         self.set_timer('TIMER_JOIN_REQUEST', 5)
@@ -114,7 +299,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
-        self.send({'dest': wsn.BROADCAST_ADDR, 'type': 'PROBE'})
+        self.send({'dest': wsn.BROADCAST_ADDR, 'gui': self.id,'type': 'PROBE'})
 
     ###################
     def send_heart_beat(self):
@@ -125,6 +310,10 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        one_hop_neighbors = [
+            gui for gui, data in self.neighbors_table.items()
+            if data.get('next_hop') is None
+        ] 
         self.send({'dest': wsn.BROADCAST_ADDR,
                    'type': 'HEART_BEAT',
                    'source': self.ch_addr if self.ch_addr is not None else self.addr,
@@ -132,7 +321,8 @@ class SensorNode(wsn.Node):
                    'role': self.role,
                    'addr': self.addr,
                    'ch_addr': self.ch_addr,
-                   'hop_count': self.hop_count})
+                   'hop_count': self.hop_count,
+                   'neighbors': one_hop_neighbors})
 
     ###################
     def send_join_request(self, dest):
@@ -173,27 +363,138 @@ class SensorNode(wsn.Node):
         self.send({'dest': dest, 'type': 'JOIN_ACK', 'source': self.addr,
                    'gui': self.id})
 
+    def print_all_neighbor_tables(self):
+        """Print neighbor tables for ALL nodes in the simulation"""
+        print("\n" + "="*70)
+        print("NEIGHBOR TABLES FOR ALL NODES")
+        print("="*70)
+        
+        for node in sim.nodes:
+            if not hasattr(node, 'neighbors_table'):
+                continue
+                
+            print(f"\nNode {node.id} Neighbor Table:")
+            
+            if not node.neighbors_table:
+                print("  (empty)")
+                continue
+            
+            one_hop = []
+            two_hop = []
+            
+            for neighbor_id, info in node.neighbors_table.items():
+                next_hop = info.get('next_hop')
+                
+                if next_hop is None:
+                    # Direct 1-hop neighbor
+                    one_hop.append(neighbor_id)
+                else:
+                    # 2-hop neighbor
+                    two_hop.append((neighbor_id, next_hop))
+            
+            # Print 1-hop neighbors
+            if one_hop:
+                one_hop.sort()
+                print(f"  1-hop: {one_hop}")
+            
+            # Print 2-hop neighbors
+            if two_hop:
+                two_hop.sort()
+                print(f"  2-hop: ", end="")
+                for dest, via in two_hop:
+                    print(f"{dest}(via {via}) ", end="")
+                print() 
+            
+            if not one_hop and not two_hop:
+                print("  (no valid neighbors)")
+        
+        print("="*70 + "\n")
+
     ###################
     def route_and_forward_package(self, pck):
-        """Routing and forwarding given package
-
-        Args:
-            pck (Dict): package to route and forward it should contain dest, source and type.
-        Returns:
-
-        """
-        if self.role != Roles.ROOT:
-            pck['next_hop'] = self.neighbors_table[self.parent_gui]['ch_addr']
-        if self.ch_addr is not None:
-            if pck['dest'].net_addr == self.ch_addr.net_addr:
-                pck['next_hop'] = pck['dest']
+        """Hybrid routing: neighbor table first (for data), then hierarchical tree routing"""
+        dest_addr = pck['dest']
+        dest_id = dest_addr.node_addr
+        is_test = pck.get('type') == 'TEST_MESSAGE'
+        
+        # Check Loops
+        if 'visited_nodes' not in pck:
+            pck['visited_nodes'] = []
+        
+        if self.id in pck['visited_nodes']:
+            if is_test:
+                print(f"Unexpected loop at Node {self.id}! Path: {pck['path_info']['path']}")
+            return 
+        
+        pck['visited_nodes'].append(self.id)
+        
+        #Mesh Routing
+        if is_test and dest_id in self.neighbors_table:
+            neighbor_info = self.neighbors_table[dest_id]
+            neighbor_addr = neighbor_info.get('addr')
+            time_since_heard = self.now - neighbor_info['last_heard']
+            
+            if (time_since_heard <= NEIGHBOR_VALIDITY_TIMEOUT and 
+                neighbor_addr is not None and 
+                neighbor_addr == dest_addr):
+                
+                next_hop_gui = neighbor_info.get('next_hop')
+                
+                # Direct 1-hop neighbor (next_hop is None)
+                if next_hop_gui is None:
+                    # Send directly to destination
+                    pck['next_hop'] = dest_addr
+                    pck['path_info']['routing_method'].append('mesh-1hop')
+                    self.send(pck)
+                    return
+                            
+                # 2-hop neighbor via intermediate
+                else:
+                    intermediate_info = self.neighbors_table.get(next_hop_gui)
+                    if intermediate_info is not None:
+                        intermediate_addr = intermediate_info.get('addr')
+                        intermediate_time = self.now - intermediate_info.get('last_heard', float('inf'))
+                        
+                        if (intermediate_addr is not None and 
+                            intermediate_time <= NEIGHBOR_VALIDITY_TIMEOUT):
+                            pck['next_hop'] = intermediate_addr
+                            pck['path_info']['routing_method'].append('mesh-2hop')
+                            self.send(pck)
+                            return
+        
+        # TREE ROUTING - Check children FIRST, then self, then parent
+        if is_test:
+            pck['path_info']['routing_method'].append('tree')
+        
+        # Check if destination is down the tree
+        for child_gui, child_data in self.child_networks_table.items():
+            networks = child_data.get('networks', []) if isinstance(child_data, dict) else child_data
+            if dest_addr.net_addr in networks:
+                child_addr = self.neighbors_table.get(child_gui, {}).get('addr')
+                if child_addr is not None:
+                    pck['next_hop'] = child_addr
+                    self.send(pck)
+                    return
+        
+        if self.ch_addr is not None and dest_addr.net_addr == self.ch_addr.net_addr:
+            pck['next_hop'] = dest_addr
+            self.send(pck)
+            return
+        
+        # Not in subtree - route to parent
+        if self.role != Roles.ROOT and self.parent_gui is not None:
+            parent_addr = self.neighbors_table.get(self.parent_gui, {}).get('ch_addr')
+            if parent_addr is not None:
+                pck['next_hop'] = parent_addr
+                self.send(pck)
+                return
+        
+        # No route found
+        if is_test:
+            if self.role == Roles.ROOT:
+                print(f"ROOT: No route to {dest_addr}")
             else:
-                for child_gui, child_networks in self.child_networks_table.items():
-                    if pck['dest'].net_addr in child_networks:
-                        pck['next_hop'] = self.neighbors_table[child_gui]['addr']
-                        break
-
-        self.send(pck)
+                print(f"Node {self.id}: No route to {dest_addr}")
 
     ###################
     def send_network_request(self):
@@ -220,88 +521,226 @@ class SensorNode(wsn.Node):
         self.route_and_forward_package({'dest': dest, 'type': 'NETWORK_REPLY', 'source': self.addr, 'addr': addr})
 
     ###################
+    
     def send_network_update(self):
-        """Sending network update message to parent
+        """Sending network update message to parent with hierarchical CH structure"""
+        child_networks = [self.ch_addr.net_addr] if self.ch_addr else []
+        for child_gui, child_data in self.child_networks_table.items():
+            if isinstance(child_data, dict):
+                child_networks.extend(child_data.get('networks', []))
+            else:
+                child_networks.extend(child_data)
+        
 
-        Args:
+        all_child_chs = []
+        if self.role == Roles.CLUSTER_HEAD and self.ch_addr is not None:
+            all_child_chs.append(self.id)
+        
+        for child_gui, child_data in self.child_networks_table.items():
+            if isinstance(child_data, dict):
+                all_child_chs.extend(child_data.get('chs', []))
 
-        Returns:
+        self.send({
+            'dest': self.neighbors_table[self.parent_gui]['ch_addr'], 
+            'type': 'NETWORK_UPDATE', 
+            'source': self.addr,
+            'gui': self.id, 
+            'child_networks': child_networks, 
+            'child_chs': all_child_chs  
+        })
 
-        """
-        child_networks = [self.ch_addr.net_addr]
-        for networks in self.child_networks_table.values():
-            child_networks.extend(networks)
+    def send_test_message(self, dest_id, message_content):
+        """Send a test message to another node by ID"""
+        dest_node = None
+        for node in sim.nodes:
+            if node.id == dest_id:
+                dest_node = node
+                break
+        
+        if dest_node is None or dest_node.addr is None:
+            print(f"✗ Cannot send from Node {self.id} to Node {dest_id}: Destination not found or not registered")
+            return
+        
+        print(f"\n[Testing: Node {self.id} → Node {dest_id}] ", end='')
 
-        self.send({'dest': self.neighbors_table[self.parent_gui]['ch_addr'], 'type': 'NETWORK_UPDATE', 'source': self.addr,
-                   'gui': self.id, 'child_networks': child_networks})
+        self.route_and_forward_package({
+            'dest': dest_node.addr,
+            'type': 'TEST_MESSAGE',
+            'source': self.addr,
+            'content': message_content,
+            'path_info': {
+                'origin_id': self.id,
+                'dest_id': dest_id,
+                'path': [self.id],
+                'routing_method': ['START']
+            }
+        })
 
     ###################
     def on_receive(self, pck):
-        """Executes when a package received.
+        """Executes when a package received."""
 
-        Args:
-            pck (Dict): received package
-        Returns:
+        if pck['type'] == 'TEST_MESSAGE':
+            if 'path_info' in pck:
+                pck['path_info']['path'].append(self.id)            
+            
+            if pck['dest'] == self.addr:
+                print(f"Node {self.id} ARRIVED")
+                path_info = pck.get('path_info', {})
+                path = path_info.get('path', [])
+                methods = path_info.get('routing_method', [])
+                origin_id = path_info.get('origin_id', '?')
+                dest_id = path_info.get('dest_id', '?')
+                
+                path_str = str(path[0])
+                for i in range(1, len(path)):
+                    method = methods[i] if i < len(methods) else 'unknown'
+                    routing_type = 'mesh' if 'neighbor' in method else 'tree'
+                    path_str += f" -({routing_type})-> {path[i]}"
+                return 
+                
+            else:
+                print(f"Node {self.id} -> ", end='')
+                self.route_and_forward_package(pck)
+                return  
 
-        """
-        if self.role == Roles.ROOT or self.role == Roles.CLUSTER_HEAD:  # if the node is root or cluster head
-            if 'next_hop' in pck.keys() and pck['dest'] != self.addr and pck['dest'] != self.ch_addr:  # forwards message if destination is not itself
+        if self.role == Roles.ROOT or self.role == Roles.CLUSTER_HEAD:
+            if 'next_hop' in pck.keys() and pck['dest'] != self.addr and pck['dest'] != self.ch_addr:
                 self.route_and_forward_package(pck)
                 return
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
-            if pck['type'] == 'PROBE':  # it waits and sends heart beat message once received probe message
-                # yield self.timeout(.5)
+                sender = pck['gui']
+
+                if sender in self.pending_promotions:
+                    addr = self.neighbors_table[sender]['addr']
+                    promote_packet = {
+                        'type': 'PROMOTE_TO_CH',
+                        'dest': addr
+                    }
+                    self.send(promote_packet)
+                    self.pending_promotions.remove(sender)
+                    if (self.changeRole):
+                        self.set_role(Roles.ROUTER)
+
+            if pck['type'] == 'PROBE':
                 self.send_heart_beat()
-            if pck['type'] == 'JOIN_REQUEST':  # it waits and sends join reply message once received join request
-                # yield self.timeout(.5)
+            if pck['type'] == 'JOIN_REQUEST':
                 self.send_join_reply(pck['gui'], wsn.Addr(self.ch_addr.net_addr, pck['gui']))
-            if pck['type'] == 'NETWORK_REQUEST':  # it sends a network reply to requested node
-                # yield self.timeout(.5)
+            if pck['type'] == 'NETWORK_REQUEST':
                 if self.role == Roles.ROOT:
                     new_addr = wsn.Addr(pck['source'].node_addr,254)
                     self.send_network_reply(pck['source'],new_addr)
             if pck['type'] == 'JOIN_ACK':
                 self.members_table.append(pck['gui'])
             if pck['type'] == 'NETWORK_UPDATE':
-                self.child_networks_table[pck['gui']] = pck['child_networks']
+                self.child_networks_table[pck['gui']] = {
+                    'networks': pck['child_networks'],
+                    'chs': pck.get('child_chs', [])
+                }
+                
+                if self.role == Roles.ROOT:
+                    print(f"\n[Root] child_networks_table[{pck['gui']}]:")
+                    print(f"  Networks: {pck['child_networks']}")
+                    print(f"  CHs: {pck.get('child_chs', [])}")
+                
                 if self.role != Roles.ROOT:
                     self.send_network_update()
-            if pck['type'] == 'SENSOR':
-                pass
-                # self.log(str(pck['source'])+'--'+str(pck['sensor_value']))
-
-        elif self.role == Roles.REGISTERED:  # if the node is registered
+        
+        elif self.role == Roles.ROUTER:
+            if 'next_hop' in pck.keys() and pck['dest'] != self.addr and pck['dest'] != self.ch_addr:
+                self.route_and_forward_package(pck)
+                return
+            
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
+                sender = pck['gui']
+                
+                if sender in self.pending_promotions:
+                    addr = self.neighbors_table[sender]['addr']
+                    promote_packet = {
+                        'type': 'PROMOTE_TO_CH',
+                        'dest': addr
+                    }
+                    self.send(promote_packet)
+                    self.pending_promotions.remove(sender)
+            
             if pck['type'] == 'PROBE':
-                # yield self.timeout(.5)
                 self.send_heart_beat()
-            if pck['type'] == 'JOIN_REQUEST':  # it sends a network request to the root
+            
+            if pck['type'] == 'JOIN_REQUEST':
+                sender_gui = pck['gui']
+                if sender_gui in self.neighbors_table:
+                    if self.ch_addr is not None:
+                        self.send_join_reply(sender_gui, wsn.Addr(self.ch_addr.net_addr, sender_gui))
+                    else:
+                        self.route_and_forward_package(pck)
+                else:
+                    self.route_and_forward_package(pck)
+            
+            if pck['type'] == 'JOIN_ACK':
+                self.members_table.append(pck['gui'])
+            
+            if pck['type'] == 'NETWORK_REQUEST':
+                self.route_and_forward_package(pck)
+            
+            if pck['type'] == 'NETWORK_REPLY':
+                self.route_and_forward_package(pck)
+            
+            if pck['type'] == 'NETWORK_UPDATE':
+                self.child_networks_table[pck['gui']] = {
+                    'networks': pck['child_networks'],
+                    'chs': pck.get('child_chs', [])
+                }
+                
+                if self.parent_gui is not None:
+                    self.send_network_update()
+
+        elif self.role == Roles.REGISTERED:
+            if pck['type'] == 'HEART_BEAT':
+                self.update_neighbor(pck)
+
+            if pck['type'] == 'PROBE':
+                sender = pck['gui']
+                if (sender not in self.received_probes):
+                    self.received_probes[sender] = 1
+                elif (self.received_probes[sender] < 3):
+                    self.received_probes[sender] += 1
+                if (self.received_probes[sender] >= 3):
+                    self.becomeRouter = True
+                    self.send_heart_beat()
+                
+            if pck['type'] == 'JOIN_REQUEST':
                 self.received_JR_guis.append(pck['gui'])
-                # yield self.timeout(.5)
                 self.send_network_request()
-            if pck['type'] == 'NETWORK_REPLY':  # it becomes cluster head and send join reply to the candidates
-                self.role = Roles.CLUSTER_HEAD
+            if pck['type'] == 'NETWORK_REPLY':
+                self.set_role(Roles.CLUSTER_HEAD)
+                try:
+                    write_clusterhead_distances_csv("clusterhead_distances.csv")
+                except Exception as e:
+                    self.log(f"CH CSV export error: {e}")
                 self.scene.nodecolor(self.id, 0, 0, 1)
                 self.ch_addr = pck['addr']
                 self.send_network_update()
-                # yield self.timeout(.5)
                 self.send_heart_beat()
                 for gui in self.received_JR_guis:
-                    # yield self.timeout(random.uniform(.1,.5))
                     self.send_join_reply(gui, wsn.Addr(self.ch_addr.net_addr,gui))
+                    self.pending_promotions.add(gui)
 
-        elif self.role == Roles.UNDISCOVERED:  # if the node is undiscovered
-            if pck['type'] == 'HEART_BEAT':  # it kills probe timer, becomes unregistered and sets join request timer once received heart beat
-                self.update_neighbor(pck)
-                self.kill_timer('TIMER_PROBE')
-                self.become_unregistered()
+            if pck['type'] == 'PROMOTE_TO_CH':
+                self.send_network_request()
+                self.changeRole = False
 
-        if self.role == Roles.UNREGISTERED:  # if the node is unregistered
+        elif self.role == Roles.UNDISCOVERED:
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
-            if pck['type'] == 'JOIN_REPLY':  # it becomes registered and sends join ack if the message is sent to itself once received join reply
+                self.become_unregistered()
+
+        if self.role == Roles.UNREGISTERED:
+            if pck['type'] == 'HEART_BEAT':
+                self.update_neighbor(pck)
+            if pck['type'] == 'JOIN_REPLY':
+                self.kill_timer('TIMER_PROBE')
                 if pck['dest_gui'] == self.id:
                     self.addr = pck['addr']
                     self.parent_gui = pck['gui']
@@ -312,16 +751,15 @@ class SensorNode(wsn.Node):
                     self.send_heart_beat()
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
                     self.send_join_ack(pck['source'])
-                    if self.ch_addr is not None: # it could be a cluster head which lost its parent
-                        self.role = Roles.CLUSTER_HEAD
+                    if self.ch_addr is not None:
+                        self.set_role(Roles.CLUSTER_HEAD)
                         self.send_network_update()
                     else:
-                        self.role = Roles.REGISTERED
-                        self.scene.nodecolor(self.id, 0, 1, 0)
-                    # # sensor implementation
-                    # timer_duration =  self.id % 20
-                    # if timer_duration == 0: timer_duration = 1
-                    # self.set_timer('TIMER_SENSOR', timer_duration)
+                        self.set_role(Roles.REGISTERED)
+                        # # sensor implementation
+                        # timer_duration =  self.id % 20
+                        # if timer_duration == 0: timer_duration = 1
+                        # self.set_timer('TIMER_SENSOR', timer_duration)
 
     ###################
     def on_timer_fired(self, name, *args, **kwargs):
@@ -346,13 +784,14 @@ class SensorNode(wsn.Node):
                 self.set_timer('TIMER_PROBE', 1)
             else:  # if the counter reached the threshold
                 if self.is_root_eligible:  # if the node is root eligible, it becomes root
-                    self.role = Roles.ROOT
+                    self.set_role(Roles.ROOT)
                     self.scene.nodecolor(self.id, 0, 0, 0)
                     self.addr = wsn.Addr(self.id, 254)
                     self.ch_addr = wsn.Addr(self.id, 254)
                     self.root_addr = self.addr
                     self.hop_count = 0
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
+                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION - 8000)
                 else:  # otherwise it keeps trying to sending probe after a long time
                     self.c_probe = 0
                     self.set_timer('TIMER_PROBE', 30)
@@ -360,6 +799,7 @@ class SensorNode(wsn.Node):
         elif name == 'TIMER_HEART_BEAT':  # it sends heart beat message once heart beat timer fired
             self.send_heart_beat()
             self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
+            #print(self.id)
 
         elif name == 'TIMER_JOIN_REQUEST':  # if it has not received heart beat messages before, it sets timer again and wait heart beat messages once join request timer fired.
             if len(self.candidate_parents_table) == 0:
@@ -372,14 +812,182 @@ class SensorNode(wsn.Node):
             timer_duration =  self.id % 20
             if timer_duration == 0: timer_duration = 1
             self.set_timer('TIMER_SENSOR', timer_duration)
+        elif name == 'TIMER_EXPORT_CH_CSV':
+            # Only root should drive exports (cheap guard)
+            if self.role == Roles.ROOT:
+                write_clusterhead_distances_csv("clusterhead_distances.csv")
+                # reschedule
+                self.set_timer('TIMER_EXPORT_CH_CSV', config.EXPORT_CH_CSV_INTERVAL)
+        elif name == 'TIMER_EXPORT_NEIGHBOR_CSV':
+            if self.role == Roles.ROOT:
+                write_neighbor_distances_csv("neighbor_distances.csv")
+                self.set_timer('TIMER_EXPORT_NEIGHBOR_CSV', config.EXPORT_NEIGHBOR_CSV_INTERVAL)
+
+        elif name == 'TIMER_RUN_TESTS':
+            if self.role == Roles.ROOT:
+                print("\n" + "="*60)
+                print(f"ROUTING TEST - Running at time {self.now}")
+                print("="*60)
+                
+                registered_nodes = []
+                for node in sim.nodes:
+                    if hasattr(node, 'addr') and node.addr is not None:
+                        registered_nodes.append(node)
+                
+                if len(registered_nodes) < 2:
+                    print("Error: Need at least 2 registered nodes")
+                    return
+                
+                # Build test queue
+                self.test_queue = []
+                for source_node in registered_nodes:
+                    for dest_node in registered_nodes:
+                        if source_node.id == dest_node.id:
+                            continue
+                        self.test_queue.append((source_node, dest_node.id))
+                
+                total_tests = len(self.test_queue)
+                print(f"\nFound {len(registered_nodes)} registered nodes")
+                print(f"Testing all {total_tests} routes sequentially...")
+                print("="*60)
+                
+                # Start the first test
+                self.test_index = 0
+                self.set_timer('TIMER_NEXT_TEST', 0.1)
+
+        elif name == 'TIMER_NEXT_TEST':
+            if self.role == Roles.ROOT and self.test_index < len(self.test_queue):
+                source_node, dest_id = self.test_queue[self.test_index]
+                self.test_index += 1
+                
+                source_node.send_test_message(dest_id, f"Test #{self.test_index}")
+                
+                # Schedule next test after a short delay
+                if self.test_index < len(self.test_queue):
+                    self.set_timer('TIMER_NEXT_TEST', 0.5)  # 0.5 second delay between tests
+                else:
+                    print(f"\n{'='*60}")
+                    print(f"All {len(self.test_queue)} test messages completed at time {self.now}!")
+                    print(f"{'='*60}\n")
+                    self.print_all_neighbor_tables()
 
 
 
+ROOT_ID = random.randrange(config.SIM_NODE_COUNT)  # 0..count-1
 
 
 
-ROOT_ID = random.randint(0, config.SIM_NODE_COUNT)
+def write_node_distances_csv(path="node_distances.csv"):
+    """Write pairwise node-to-node Euclidean distances as an edge list."""
+    ids = sorted(NODE_POS.keys())
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["source_id", "target_id", "distance"])
+        for i, sid in enumerate(ids):
+            x1, y1 = NODE_POS[sid]
+            for tid in ids[i+1:]:  # i+1 to avoid duplicates and self-pairs
+                x2, y2 = NODE_POS[tid]
+                dist = math.hypot(x1 - x2, y1 - y2)
+                w.writerow([sid, tid, f"{dist:.6f}"])
 
+
+def write_node_distance_matrix_csv(path="node_distance_matrix.csv"):
+    ids = sorted(NODE_POS.keys())
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["node_id"] + ids)
+        for sid in ids:
+            x1, y1 = NODE_POS[sid]
+            row = [sid]
+            for tid in ids:
+                x2, y2 = NODE_POS[tid]
+                dist = math.hypot(x1 - x2, y1 - y2)
+                row.append(f"{dist:.6f}")
+            w.writerow(row)
+
+
+def write_clusterhead_distances_csv(path="clusterhead_distances.csv"):
+    """Write pairwise distances between current cluster heads."""
+    clusterheads = []
+    for node in sim.nodes:
+        # Only collect nodes that are cluster heads and have recorded positions
+        if hasattr(node, "role") and node.role == Roles.CLUSTER_HEAD and node.id in NODE_POS:
+            x, y = NODE_POS[node.id]
+            clusterheads.append((node.id, x, y))
+
+    if len(clusterheads) < 2:
+        # Still write the header so the file exists/is refreshed
+        with open(path, "w", newline="") as f:
+            csv.writer(f).writerow(["clusterhead_1", "clusterhead_2", "distance"])
+        return
+
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["clusterhead_1", "clusterhead_2", "distance"])
+        for i, (id1, x1, y1) in enumerate(clusterheads):
+            for id2, x2, y2 in clusterheads[i+1:]:
+                dist = math.hypot(x1 - x2, y1 - y2)
+                w.writerow([id1, id2, f"{dist:.6f}"])
+
+
+
+def write_neighbor_distances_csv(path="neighbor_distances.csv", dedupe_undirected=True):
+    """
+    Export neighbor distances per node.
+    Each row is (node -> neighbor) with distance from NODE_POS.
+
+    Args:
+        path (str): output CSV path
+        dedupe_undirected (bool): if True, writes each unordered pair once
+                                  (min(node_id,neighbor_id), max(...)).
+                                  If False, writes one row per direction.
+    """
+    # Safety: ensure we can compute distances
+    if not globals().get("NODE_POS"):
+        raise RuntimeError("NODE_POS is missing; record positions during create_network().")
+
+    # Prepare a set to avoid duplicates if dedupe_undirected=True
+    seen_pairs = set()
+
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["node_id", "neighbor_id", "distance",
+                    "neighbor_role", "neighbor_hop_count", "arrival_time"])
+
+        for node in sim.nodes:
+            # Skip nodes without any neighbor info yet
+            if not hasattr(node, "neighbors_table"):
+                continue
+
+            x1, y1 = NODE_POS.get(node.id, (None, None))
+            if x1 is None:
+                continue  # no position → cannot compute distance
+
+            # neighbors_table: key = neighbor GUI, value = heartbeat packet dict
+            for n_gui, pck in getattr(node, "neighbors_table", {}).items():
+                # Optional dedupe (unordered)
+                if dedupe_undirected:
+                    key = (min(node.id, n_gui), max(node.id, n_gui))
+                    if key in seen_pairs:
+                        continue
+                    seen_pairs.add(key)
+
+                # Position of neighbor
+                x2, y2 = NODE_POS.get(n_gui, (None, None))
+                if x2 is None:
+                    continue
+
+                # Distance (prefer pck['distance'] if you added it in update_neighbor)
+                dist = pck.get("distance")
+                if dist is None:
+                    dist = math.hypot(x1 - x2, y1 - y2)
+
+                # Extra fields (best-effort; may be missing)
+                n_role = getattr(pck.get("role", None), "name", pck.get("role", None))
+                hop = pck.get("hop_count", "")
+                at  = pck.get("arrival_time", "")
+
+                w.writerow([node.id, n_gui, f"{dist:.6f}", n_role, hop, at])
 
 ###########################################################
 def create_network(node_class, number_of_nodes=100):
@@ -395,10 +1003,11 @@ def create_network(node_class, number_of_nodes=100):
     for i in range(number_of_nodes):
         x = i / edge
         y = i % edge
-        px = 50 + x * config.SIM_NODE_PLACING_CELL_SIZE + random.uniform(-1 * config.SIM_NODE_PLACING_CELL_SIZE / 3, config.SIM_NODE_PLACING_CELL_SIZE / 3)
-        py = 50 + y * config.SIM_NODE_PLACING_CELL_SIZE + random.uniform(-1 * config.SIM_NODE_PLACING_CELL_SIZE / 3, config.SIM_NODE_PLACING_CELL_SIZE / 3)
+        px = 300 + config.SCALE*x * config.SIM_NODE_PLACING_CELL_SIZE + random.uniform(-1 * config.SIM_NODE_PLACING_CELL_SIZE / 3, config.SIM_NODE_PLACING_CELL_SIZE / 3)
+        py = 200 + config.SCALE* y * config.SIM_NODE_PLACING_CELL_SIZE + random.uniform(-1 * config.SIM_NODE_PLACING_CELL_SIZE / 3, config.SIM_NODE_PLACING_CELL_SIZE / 3)
         node = sim.add_node(node_class, (px, py))
-        node.tx_range = config.NODE_TX_RANGE
+        NODE_POS[node.id] = (px, py)  
+        node.tx_range = config.NODE_TX_RANGE * config.SCALE
         node.logging = True
         node.arrival = random.uniform(0, config.NODE_ARRIVAL_MAX)
         if node.id == ROOT_ID:
@@ -415,8 +1024,18 @@ sim = wsn.Simulator(
 # creating random network
 create_network(SensorNode, config.SIM_NODE_COUNT)
 
+write_node_distances_csv("node_distances.csv")
+write_node_distance_matrix_csv("node_distance_matrix.csv")
+
 # start the simulation
 sim.run()
+
+print("Simulation Finished")
+
+import time
+time.sleep(1)
+
+#test_all_registered_nodes()
 
 # Created 100 nodes at random locations with random arrival times.
 # When nodes are created they appear in white
