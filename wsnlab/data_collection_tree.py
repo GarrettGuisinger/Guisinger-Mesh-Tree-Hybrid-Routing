@@ -23,6 +23,8 @@ NEIGHBOR_VALIDITY_TIMEOUT = 300
 PACKET_LOGS = []
 JOIN_TIMES = []
 
+ROUTER_CHILD_CHECK_INTERVAL = 50
+
 def _addr_str(a): return "" if a is None else str(a)
 def _role_name(r): return r.name if hasattr(r, "name") else str(r)
 
@@ -132,6 +134,10 @@ class SensorNode(wsn.Node):
         self.test_index = 0  
         self.test_output_file = None
         self.probe_start_time = None 
+        self.last_parent_heartbeat = None
+        self.ch_collision_count = {} 
+        self.ch_collision_threshold = 3
+        self.ch_collision_timers = {}
 
 
     ###################
@@ -176,11 +182,16 @@ class SensorNode(wsn.Node):
                 self.erase_tx_range()
                 
     def become_unregistered(self):
+        """Reset node to initial unregistered state and attempt to rejoin."""
         if self.role != Roles.UNDISCOVERED:
             self.kill_all_timers()
             self.log('I became UNREGISTERED')
+        
+        # Visual reset
         self.scene.nodecolor(self.id, 1, 1, 0)
         self.erase_parent()
+        
+        # Reset ALL network state to initial conditions
         self.addr = None
         self.ch_addr = None
         self.parent_gui = None
@@ -193,9 +204,18 @@ class SensorNode(wsn.Node):
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        self.received_JR_guis = []  
-        self.send_probe()
-        self.set_timer('TIMER_JOIN_REQUEST', 20)
+        self.received_JR_guis = []
+        self.received_probes = {}
+        self.become_router = False
+        self.pending_promotions = set()
+        self.can_promote = False
+        self.changeRole = True
+        self.ch_collision_count = {}
+        self.ch_collision_timers = {} 
+        
+        self.probe_start_time = self.now
+        self.set_timer('TIMER_REJOIN_DELAY', 200)
+        
 
     ###################
     def update_neighbor(self, pck):
@@ -203,7 +223,8 @@ class SensorNode(wsn.Node):
         sender_addr = pck.get('addr')
         sender_hop_count = pck.get('hop_count', 0)
         sender_role = pck.get('role') 
-   
+
+        # Neighbor table automatically tracks last_heard time
         self.neighbors_table[sender_gui] = {
             'addr': sender_addr,
             'hop_count': sender_hop_count,
@@ -236,6 +257,7 @@ class SensorNode(wsn.Node):
                 'next_hop': sender_gui,
                 'role': None  
             }
+        
         if sender_addr is not None: 
             if sender_gui not in self.members_table:  
                 if sender_gui not in self.candidate_parents_table:
@@ -271,6 +293,95 @@ class SensorNode(wsn.Node):
                 'next_hop': entry['next_hop']
             }
         return result
+
+    def check_parent_alive(self):
+        """Check if parent is still responding using existing neighbor validity check."""
+        if self.role in [Roles.ROOT, Roles.UNDISCOVERED]:
+            return  # Root has no parent, undiscovered doesn't care yet
+        
+        if self.parent_gui is None:
+            return
+        
+        # Use existing neighbor validity system
+        parent_status = self.get_neighbor_status(self.parent_gui)
+        
+        if parent_status is None:
+            # Parent not in neighbor table at all - shouldn't happen but handle it
+            self.log(f"WARNING: Parent {self.parent_gui} not in neighbor table!")
+            self.handle_parent_failure()
+            return
+        
+        if not parent_status['valid']:
+            # Parent has timed out according to NEIGHBOR_VALIDITY_TIMEOUT
+            time_since_heard = self.now - parent_status['last_heard']
+            self.log(f"PARENT TIMEOUT! No heartbeat from parent {self.parent_gui} for {time_since_heard:.1f} time units")
+            self.handle_parent_failure()
+
+    def handle_parent_failure(self):
+        """Handle the case where parent node has failed/left network."""
+        self.log(f"Parent {self.parent_gui} has failed. Orphaning node {self.id}")
+        
+        # If this node is a router, check if it should demote
+        if self.role == Roles.ROUTER:
+            # Router only exists to forward for children
+            # If parent is dead, router should leave too
+            if len(self.members_table) == 0:
+                self.log(f"Router {self.id} has no children and parent died. Leaving network.")
+                self.orphan_and_notify_children()
+                return
+        
+        # Notify all children that they're orphaned
+        self.orphan_and_notify_children()
+
+    def orphan_and_notify_children(self):
+        """Orphan this node and IMMEDIATELY notify all children to orphan as well."""
+        self.log(f"Node {self.id} orphaning and notifying {len(self.members_table)} children")
+        
+        # Send ORPHAN notification to all direct children in members_table
+        for child_gui in list(self.members_table):
+            child_addr = self.neighbors_table.get(child_gui, {}).get('addr')
+            if child_addr:
+                self.send({
+                    'dest': child_addr,
+                    'type': 'ORPHAN_NOTIFICATION',
+                    'source': self.addr if self.addr else None,
+                    'gui': self.id,
+                    'creation_time': self.now
+                })
+                self.log(f"  -> Sent ORPHAN to child {child_gui}")
+        
+        # NEW: Directly orphan parent if it's a router
+        if self.parent_gui is not None:
+            # Find the actual parent node object
+            for node in sim.nodes:
+                if node.id == self.parent_gui:
+                    if hasattr(node, 'role') and node.role == Roles.ROUTER:
+                        self.log(f"  -> Parent {self.parent_gui} is ROUTER - directly orphaning it")
+                        # Remove self from parent's member list
+                        if self.id in node.members_table:
+                            node.members_table.remove(self.id)
+                        # If router has no children left, orphan it
+                        if len(node.members_table) == 0:
+                            node.log(f"ROUTER has no children left - orphaning")
+                            node.orphan_and_notify_children()  # Recursive cascade upward
+                    break
+        
+        # Orphan self immediately after notifications
+        self.become_orphaned()
+
+    def become_orphaned(self):
+        """Become orphaned and rejoin network."""
+        self.log(f"Node {self.id} becoming orphaned")
+        
+        # If this was a cluster head, it loses that status
+        if self.role == Roles.CLUSTER_HEAD:
+            self.log(f"Cluster Head {self.id} lost parent, demoting")
+        
+        if self.role == Roles.ROUTER:
+            self.log(f"Router {self.id} lost parent, demoting")
+        
+        # Reset to unregistered state and attempt to rejoin
+        self.become_unregistered()
 
     ###################
     def select_and_join(self):
@@ -586,6 +697,18 @@ class SensorNode(wsn.Node):
             'creation_time': self.now
         })
 
+    def send_ch_leave_command(self, target_ch_gui):
+        """Tell another CH to leave the network."""
+        target_addr = self.neighbors_table.get(target_ch_gui, {}).get('addr')
+        if target_addr:
+            self.log(f"CH {self.id} sending LEAVE command to CH {target_ch_gui}")
+            self.send({
+                'dest': target_addr,
+                'type': 'CH_LEAVE_COMMAND',
+                'gui': self.id,
+                'creation_time': self.now
+        })
+
     ###################
     def on_receive(self, pck):
         """Executes when a package received."""
@@ -600,12 +723,18 @@ class SensorNode(wsn.Node):
                 'arrival_time': self.now,
                 'delay': delay
             })
+        
+        if pck['type'] == 'ORPHAN_NOTIFICATION':
+            if pck['gui'] == self.parent_gui:
+                self.log(f"!!! ORPHAN notification from parent {self.parent_gui} - cascading immediately")
+                self.orphan_and_notify_children()
+            return
 
         if pck['type'] == 'TEST_MESSAGE':
             if 'path_info' in pck:
                 pck['path_info']['path'].append(self.id)            
             
-            if pck['dest'] == self.addr:
+            if self.addr is not None and pck['dest'] == self.addr:
                 print(f"Node {self.id} ARRIVED")
                 path_info = pck.get('path_info', {})
                 path = path_info.get('path', [])
@@ -629,8 +758,42 @@ class SensorNode(wsn.Node):
             if 'next_hop' in pck.keys() and pck['dest'] != self.addr and pck['dest'] != self.ch_addr:
                 self.route_and_forward_package(pck)
                 return
+            
+            if pck['type'] == 'CH_LEAVE_COMMAND':
+                if self.role == Roles.CLUSTER_HEAD:
+                    sender_gui = pck['gui']
+                    self.log(f"CH {self.id} received LEAVE command from CH {sender_gui} - leaving network")
+                    self.orphan_and_notify_children()
+                return
+
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
+    
+                if self.role == Roles.CLUSTER_HEAD:
+                    sender_role = pck.get('role')
+                    sender_gui = pck['gui']
+                    
+                    # Ignore collision if sender is our child or being promoted by us
+                    if sender_gui in self.members_table or sender_gui in self.pending_promotions:
+                        # This is our child/promoted node, ignore collision
+                        pass
+                    elif sender_role in [Roles.CLUSTER_HEAD, Roles.ROOT]:
+                        # Track how many times we've heard from this CH/ROOT
+                        if sender_gui not in self.ch_collision_count:
+                            self.ch_collision_count[sender_gui] = 0
+                        
+                        self.ch_collision_count[sender_gui] += 1
+                        
+                        if self.ch_collision_count[sender_gui] >= self.ch_collision_threshold:
+                            # NEW: Instead of leaving immediately, start random timer
+                            if sender_gui not in self.ch_collision_timers:
+                                random_delay = random.uniform(0, 50)
+                                self.log(f"CH {self.id} heard {self.ch_collision_count[sender_gui]} heartbeats from {sender_role.name} {sender_gui} - timer set for {random_delay:.1f}s")
+                                self.ch_collision_timers[sender_gui] = True
+                                self.set_timer('TIMER_CH_COLLISION_DECISION', random_delay, other_ch_gui=sender_gui)
+                        else:
+                            self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
+                                        
                 sender = pck['gui']
 
                 if sender in self.pending_promotions:
@@ -676,25 +839,39 @@ class SensorNode(wsn.Node):
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
                 sender = pck['gui']
+        
+                # NEW: Check if parent is also a router - LEAVE immediately
+                if sender == self.parent_gui:
+                    sender_role = pck.get('role')
+                    if sender_role == Roles.ROUTER:
+                        self.log(f"ROUTER {self.id} detected parent {self.parent_gui} is also ROUTER - leaving network")
+                        self.orphan_and_notify_children()
+                        return  # Stop processing
                 
                 if sender in self.pending_promotions:
-                    addr = self.neighbors_table[sender]['addr']
-                    promote_packet = {
-                        'type': 'PROMOTE_TO_CH',
-                        'dest': addr
-                    }
-                    self.send(promote_packet)
-                    self.pending_promotions.remove(sender)
-            
-            if pck['type'] == 'JOIN_REQUEST':
-                sender_gui = pck['gui']
-                if sender_gui in self.neighbors_table:
-                    if self.ch_addr is not None:
-                        self.send_join_reply(sender_gui, wsn.Addr(self.ch_addr.net_addr, sender_gui))
+                    if sender in self.neighbors_table:
+                        addr = self.neighbors_table[sender].get('addr')
+                        if addr is not None:
+                            promote_packet = {
+                                'type': 'PROMOTE_TO_CH',
+                                'dest': addr
+                            }
+                            self.send(promote_packet)
+                            self.pending_promotions.remove(sender)
+                        else:
+                            self.pending_promotions.remove(sender)
                     else:
-                        self.route_and_forward_package(pck)
-                else:
-                    self.route_and_forward_package(pck)
+                        self.pending_promotions.remove(sender)
+                    
+                    if pck['type'] == 'JOIN_REQUEST':
+                        sender_gui = pck['gui']
+                        if sender_gui in self.neighbors_table:
+                            if self.ch_addr is not None:
+                                self.send_join_reply(sender_gui, wsn.Addr(self.ch_addr.net_addr, sender_gui))
+                            else:
+                                self.route_and_forward_package(pck)
+                        else:
+                            self.route_and_forward_package(pck)
             
             if pck['type'] == 'JOIN_ACK':
                 self.members_table.append(pck['gui'])
@@ -794,6 +971,14 @@ class SensorNode(wsn.Node):
                         # if timer_duration == 0: timer_duration = 1
                         # self.set_timer('TIMER_SENSOR', timer_duration)
 
+    def kill_node(self):
+        """Manually kill this node, triggering orphaning of children."""
+        self.log(f"Node {self.id} is being killed/powered off")
+        self.orphan_and_notify_children()
+        self.sleep()
+        self.kill_all_timers()
+        self.scene.nodecolor(self.id, 0.5, 0.5, 0.5)
+
     ###################
     def on_timer_fired(self, name, *args, **kwargs):
         """Executes when a timer fired.
@@ -833,6 +1018,8 @@ class SensorNode(wsn.Node):
         elif name == 'TIMER_HEART_BEAT':  # it sends heart beat message once heart beat timer fired
             self.send_heart_beat()
             self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
+            if self.role not in [Roles.ROOT, Roles.UNDISCOVERED]:
+                self.check_parent_alive()
             #print(self.id)
 
         elif name == 'TIMER_JOIN_REQUEST':  # if it has not received heart beat messages before, it sets timer again and wait heart beat messages once join request timer fired.
@@ -840,6 +1027,23 @@ class SensorNode(wsn.Node):
                 self.become_unregistered()
             else:  # otherwise it chose one of them and sends join request
                 self.select_and_join()
+
+        elif name == 'TIMER_REJOIN_DELAY':
+            self.log(f"Node {self.id} starting rejoin process after delay")
+            self.send_probe()
+            self.set_timer('TIMER_JOIN_REQUEST', 20)
+
+        elif name == 'TIMER_CH_COLLISION_DECISION':
+            other_ch_gui = kwargs.get('other_ch_gui')
+            
+            # Check if we're still a CH and still hearing from the other CH
+            if self.role == Roles.CLUSTER_HEAD and other_ch_gui in self.ch_collision_timers:
+                self.log(f"CH {self.id} timer expired - telling CH {other_ch_gui} to leave")
+                self.send_ch_leave_command(other_ch_gui)
+                
+                # Clean up
+                self.ch_collision_timers.pop(other_ch_gui, None)
+                self.ch_collision_count.pop(other_ch_gui, None)
 
         elif name == 'TIMER_SENSOR':
             self.route_and_forward_package({'dest': self.root_addr, 'type': 'SENSOR', 'source': self.addr, 'sensor_value': random.uniform(10,50)})
@@ -931,9 +1135,15 @@ class SensorNode(wsn.Node):
                     sys.stdout = sys.__stdout__  # Restore to original stdout
                     print(f"\nAll tests complete! Results saved to routing_tests_and_tables.txt")
 
+                    for node in sim.nodes:
+                        if node.id == 15:
+                            print(f"\nKilling node {node.id} to test orphaning...")
+                            node.kill_node()
+                            break
+
         elif name == 'TIMER_PROMOTION_COOLDOWN':
             self.can_promote = True
-
+    
 
 ROOT_ID = random.randrange(config.SIM_NODE_COUNT)  # 0..count-1
 
@@ -1089,13 +1299,17 @@ create_network(SensorNode, config.SIM_NODE_COUNT)
 write_node_distances_csv("node_distances.csv")
 write_node_distance_matrix_csv("node_distance_matrix.csv")
 
+
+
 # start the simulation
 sim.run()
-
 print("Simulation Finished")
 
 import time
 time.sleep(1)
+
+
+
 
 # Export packet delays
 with open("packet_delays.csv", "w") as f:
