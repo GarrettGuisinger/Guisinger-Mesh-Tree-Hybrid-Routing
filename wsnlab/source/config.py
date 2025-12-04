@@ -10,9 +10,9 @@ NODE_ARRIVAL_MAX = 200  # max time to wake up
 
 
 ## simulation properties
-SIM_NODE_COUNT = 100  # noce count in simulation
+SIM_NODE_COUNT = 30  # node count in simulation
 SIM_NODE_PLACING_CELL_SIZE = 75  # cell size to place one node
-SIM_DURATION = 30000  # simulation Duration in seconds
+SIM_DURATION = 10000  # simulation Duration in seconds
 SIM_TIME_SCALE = 0.00001  #  The real time dureation of 1 second simualtion time
 SIM_TERRAIN_SIZE = (1400, 1400)  #terrain size
 SIM_TITLE = 'Data Collection Tree'  # title of visualization window

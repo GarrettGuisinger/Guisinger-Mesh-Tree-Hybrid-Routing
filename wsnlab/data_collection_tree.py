@@ -768,7 +768,7 @@ class SensorNode(wsn.Node):
 
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
-    
+                """
                 if self.role == Roles.CLUSTER_HEAD:
                     sender_role = pck.get('role')
                     sender_gui = pck['gui']
@@ -793,7 +793,7 @@ class SensorNode(wsn.Node):
                                 self.set_timer('TIMER_CH_COLLISION_DECISION', random_delay, other_ch_gui=sender_gui)
                         else:
                             self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
-                                        
+                """                        
                 sender = pck['gui']
 
                 if sender in self.pending_promotions:
@@ -1135,11 +1135,11 @@ class SensorNode(wsn.Node):
                     sys.stdout = sys.__stdout__  # Restore to original stdout
                     print(f"\nAll tests complete! Results saved to routing_tests_and_tables.txt")
 
-                    for node in sim.nodes:
-                        if node.id == 15:
-                            print(f"\nKilling node {node.id} to test orphaning...")
-                            node.kill_node()
-                            break
+                    #for node in sim.nodes:
+                    #    if node.id == 15:
+                    #        print(f"\nKilling node {node.id} to test orphaning...")
+                    #        node.kill_node()
+                    #        break
 
         elif name == 'TIMER_PROMOTION_COOLDOWN':
             self.can_promote = True
