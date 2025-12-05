@@ -77,7 +77,9 @@ class Node(wsnlab.Node):
         #self.delayed_exec(0.2, self.scene.delshape, obj_id)
 
     def erase_tx_range(self):
-        self.delayed_exec(0.2, self.scene.delshape, self.id)
+        if hasattr(self, 'tx_range_obj') and self.tx_range_obj is not None:
+            self.scene.delshape(self.tx_range_obj)
+            self.tx_range_obj = None
 
     def move(self, x, y):
         """Visualise move process in addition to base move method.

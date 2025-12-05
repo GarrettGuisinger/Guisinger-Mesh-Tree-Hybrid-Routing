@@ -10,7 +10,7 @@ NODE_ARRIVAL_MAX = 200  # max time to wake up
 
 
 ## simulation properties
-SIM_NODE_COUNT = 30  # node count in simulation
+SIM_NODE_COUNT = 80  # node count in simulation
 SIM_NODE_PLACING_CELL_SIZE = 75  # cell size to place one node
 SIM_DURATION = 10000  # simulation Duration in seconds
 SIM_TIME_SCALE = 0.00001  #  The real time dureation of 1 second simualtion time
@@ -25,3 +25,5 @@ HEARTH_BEAT_TIME_INTERVAL = 100
 REPAIRING_METHOD = 'ALL_ORPHAN' # 'ALL_ORPHAN', 'FIND_ANOTHER_PARENT'
 EXPORT_CH_CSV_INTERVAL = 10  # simulation time units;
 EXPORT_NEIGHBOR_CSV_INTERVAL = 10  # simulation time units;
+
+CLUSTERHEAD_NEIGHBORS = True

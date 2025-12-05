@@ -138,6 +138,7 @@ class SensorNode(wsn.Node):
         self.ch_collision_count = {} 
         self.ch_collision_threshold = 3
         self.ch_collision_timers = {}
+        self.can_be_kicked = True
 
 
     ###################
@@ -168,8 +169,10 @@ class SensorNode(wsn.Node):
                 self.scene.nodecolor(self.id, 1, 1, 1)
             elif new_role == Roles.UNREGISTERED:
                 self.scene.nodecolor(self.id, 1, 1, 0)
+                self.erase_tx_range()
             elif new_role == Roles.REGISTERED:
                 self.scene.nodecolor(self.id, 0, 1, 0)
+                self.erase_tx_range()
             elif new_role == Roles.CLUSTER_HEAD:
                 self.scene.nodecolor(self.id, 0, 0, 1)
                 self.draw_tx_range()
@@ -763,37 +766,39 @@ class SensorNode(wsn.Node):
                 if self.role == Roles.CLUSTER_HEAD:
                     sender_gui = pck['gui']
                     self.log(f"CH {self.id} received LEAVE command from CH {sender_gui} - leaving network")
-                    self.orphan_and_notify_children()
+                    if self.can_be_kicked:
+                        self.can_be_kicked = False
+                        self.orphan_and_notify_children()
                 return
 
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
-                """
-                if self.role == Roles.CLUSTER_HEAD:
-                    sender_role = pck.get('role')
-                    sender_gui = pck['gui']
-                    
-                    # Ignore collision if sender is our child or being promoted by us
-                    if sender_gui in self.members_table or sender_gui in self.pending_promotions:
-                        # This is our child/promoted node, ignore collision
-                        pass
-                    elif sender_role in [Roles.CLUSTER_HEAD, Roles.ROOT]:
-                        # Track how many times we've heard from this CH/ROOT
-                        if sender_gui not in self.ch_collision_count:
-                            self.ch_collision_count[sender_gui] = 0
+                if config.CLUSTERHEAD_NEIGHBORS:
+                    if self.role == Roles.CLUSTER_HEAD:
+                        sender_role = pck.get('role')
+                        sender_gui = pck['gui']
                         
-                        self.ch_collision_count[sender_gui] += 1
-                        
-                        if self.ch_collision_count[sender_gui] >= self.ch_collision_threshold:
-                            # NEW: Instead of leaving immediately, start random timer
-                            if sender_gui not in self.ch_collision_timers:
-                                random_delay = random.uniform(0, 50)
-                                self.log(f"CH {self.id} heard {self.ch_collision_count[sender_gui]} heartbeats from {sender_role.name} {sender_gui} - timer set for {random_delay:.1f}s")
-                                self.ch_collision_timers[sender_gui] = True
-                                self.set_timer('TIMER_CH_COLLISION_DECISION', random_delay, other_ch_gui=sender_gui)
-                        else:
-                            self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
-                """                        
+                        # Ignore collision if sender is our child or being promoted by us
+                        if sender_gui in self.members_table or sender_gui in self.pending_promotions:
+                            # This is our child/promoted node, ignore collision
+                            pass
+                        elif sender_role in [Roles.CLUSTER_HEAD, Roles.ROOT]:
+                            # Track how many times we've heard from this CH/ROOT
+                            if sender_gui not in self.ch_collision_count:
+                                self.ch_collision_count[sender_gui] = 0
+                            
+                            self.ch_collision_count[sender_gui] += 1
+                            
+                            if self.ch_collision_count[sender_gui] >= self.ch_collision_threshold:
+                                # NEW: Instead of leaving immediately, start random timer
+                                if sender_gui not in self.ch_collision_timers:
+                                    random_delay = random.uniform(0, 50)
+                                    self.log(f"CH {self.id} heard {self.ch_collision_count[sender_gui]} heartbeats from {sender_role.name} {sender_gui} - timer set for {random_delay:.1f}s")
+                                    self.ch_collision_timers[sender_gui] = True
+                                    self.set_timer('TIMER_CH_COLLISION_DECISION', random_delay, other_ch_gui=sender_gui)
+                            else:
+                                self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
+                                       
                 sender = pck['gui']
 
                 if sender in self.pending_promotions:
