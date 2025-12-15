@@ -101,44 +101,61 @@ class SensorNode(wsn.Node):
 
     ###################
     def init(self):
-        """Initialization of node. Setting all attributes of node.
-        At the beginning node needs to be sleeping and its role should be UNDISCOVERED.
-
-        Args:
-
-        Returns:
-
-        """
+        """Initialization of node. Setting all attributes of node."""
         self.scene.nodecolor(self.id, 1, 1, 1) 
         self.sleep()
+        
+        # ========== CORE NETWORK STATE ==========
         self.addr = None
         self.ch_addr = None
         self.parent_gui = None
         self.root_addr = None
         self.set_role(Roles.UNDISCOVERED)
         self.is_root_eligible = True if self.id == ROOT_ID else False
+        
+        # ========== PROBE STATE ==========
         self.c_probe = 0
-        self.th_probe = 10 
+        self.th_probe = 10
+        self.probe_start_time = None
+        
+        # ========== HOP COUNT ==========
         self.hop_count = 2
-        self.neighbors_table = {} 
+        
+        # ========== NEIGHBOR/ROUTING STATE ==========
+        self.neighbors_table = {}
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        self.received_JR_guis = [] 
+        
+        # ========== JOIN REQUEST STATE ==========
+        self.received_JR_guis = []
         self.received_probes = {}
+        
+        # ========== PROMOTION STATE ==========
         self.become_router = False
         self.pending_promotions = set()
         self.can_promote = False
         self.changeRole = True
-        self.test_queue = [] 
-        self.test_index = 0  
+        
+        # ========== TEST STATE ==========
+        self.test_queue = []
+        self.test_index = 0
         self.test_output_file = None
-        self.probe_start_time = None 
+        
+        # ========== PARENT TRACKING STATE ==========
         self.last_parent_heartbeat = None
-        self.ch_collision_count = {} 
+        
+        # ========== COLLISION DETECTION STATE ==========
+        self.ch_collision_count = {}
         self.ch_collision_threshold = 3
         self.ch_collision_timers = {}
         self.can_be_kicked = True
+        
+        # ========== ENERGY STATE ==========
+        self.node_energy = config.NODE_INITIAL_ENERGY
+        
+        # ========== NODE STATUS ==========
+        self.is_dead = False
 
 
     ###################
@@ -185,40 +202,77 @@ class SensorNode(wsn.Node):
                 self.erase_tx_range()
                 
     def become_unregistered(self):
-        """Reset node to initial unregistered state and attempt to rejoin."""
+        """Reset node to initial unregistered state and attempt to rejoin.
+        This method ensures ALL node states are cleared when leaving the network.
+        """
         if self.role != Roles.UNDISCOVERED:
             self.kill_all_timers()
-            self.log('I became UNREGISTERED')
+            self.log(f'Node {self.id} becoming UNREGISTERED - resetting all states')
         
-        # Visual reset
-        self.scene.nodecolor(self.id, 1, 1, 0)
+        # ========== VISUAL RESET ==========
+        self.scene.nodecolor(self.id, 1, 1, 0)  # Yellow for unregistered
         self.erase_parent()
+        self.erase_tx_range()
         
-        # Reset ALL network state to initial conditions
+        # ========== CORE NETWORK STATE ==========
         self.addr = None
         self.ch_addr = None
         self.parent_gui = None
         self.root_addr = None
+        self.hop_count = 2
+        
+        # ========== ROLE STATE ==========
         self.set_role(Roles.UNREGISTERED)
+        
+        # ========== PROBE STATE ==========
         self.c_probe = 0
         self.th_probe = 10
-        self.hop_count = 2
+        self.probe_start_time = self.now
+        
+        # ========== NEIGHBOR/ROUTING STATE ==========
         self.neighbors_table = {}
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
+        
+        # ========== JOIN REQUEST STATE ==========
         self.received_JR_guis = []
         self.received_probes = {}
+        
+        # ========== PROMOTION STATE ==========
         self.become_router = False
         self.pending_promotions = set()
         self.can_promote = False
         self.changeRole = True
+        
+        # ========== COLLISION DETECTION STATE ==========
         self.ch_collision_count = {}
-        self.ch_collision_timers = {} 
+        self.ch_collision_timers = {}
         
-        self.probe_start_time = self.now
+        # ========== PARENT TRACKING STATE ==========
+        self.last_parent_heartbeat = None
+        
+        # ========== TEST STATE (if used) ==========
+        self.test_queue = []
+        self.test_index = 0
+        if hasattr(self, 'test_output_file') and self.test_output_file is not None:
+            try:
+                self.test_output_file.close()
+            except:
+                pass
+            self.test_output_file = None
+        
+        # ========== ENERGY STATE ==========
+        # Note: Energy is NOT reset - it continues to drain
+        # If you want to reset energy, uncomment this:
+        # self.node_energy = config.NODE_INITIAL_ENERGY
+        
+        # ========== REJOIN PROCESS ==========
+        # Start rejoin process after a delay to avoid immediate re-collision
+        self.log(f'Node {self.id} will attempt rejoin after delay')
         self.set_timer('TIMER_REJOIN_DELAY', 200)
-        
+    
+    
 
     ###################
     def update_neighbor(self, pck):
@@ -284,17 +338,42 @@ class SensorNode(wsn.Node):
         }
 
     def get_neighbors_with_validity(self):
-        """Get all neighbors with validity status."""
+        """Get all neighbors with validity status.
+        
+        Args:
+            cleanup (bool): If True, remove invalid neighbors from all tables
+        """
         result = {}
+        invalid_neighbors = []
+        
         for gui, entry in self.neighbors_table.items():
             time_since_heard = self.now - entry['last_heard']
             is_valid = time_since_heard <= NEIGHBOR_VALIDITY_TIMEOUT
+            
             result[gui] = {
                 'addr': entry['addr'],
                 'last_heard': entry['last_heard'],
                 'valid': is_valid,
                 'next_hop': entry['next_hop']
             }
+            
+            if not is_valid:
+                invalid_neighbors.append(gui)
+        
+        # Clean up invalid neighbors if requested
+        if invalid_neighbors:
+            for gui in invalid_neighbors:
+                self.log(f"Auto-cleaning invalid neighbor {gui}")
+                self.neighbors_table.pop(gui, None)
+                
+                if gui in self.candidate_parents_table:
+                    self.candidate_parents_table.remove(gui)
+                
+                if gui in self.members_table:
+                    self.members_table.remove(gui)
+                
+                self.child_networks_table.pop(gui, None)
+        
         return result
 
     def check_parent_alive(self):
@@ -330,20 +409,22 @@ class SensorNode(wsn.Node):
             # If parent is dead, router should leave too
             if len(self.members_table) == 0:
                 self.log(f"Router {self.id} has no children and parent died. Leaving network.")
-                self.orphan_and_notify_children()
+                self.orphan_and_notify_children(0)
                 return
         
         # Notify all children that they're orphaned
-        self.orphan_and_notify_children()
+        self.orphan_and_notify_children(0)
 
-    def orphan_and_notify_children(self):
+    def orphan_and_notify_children(self, CH_LEAVE):
         """Orphan this node and IMMEDIATELY notify all children to orphan as well."""
         self.log(f"Node {self.id} orphaning and notifying {len(self.members_table)} children")
-        
+        if (not CH_LEAVE): #If not first node to orphan, optimization can continue
+            self.can_be_kicked = True
         # Send ORPHAN notification to all direct children in members_table
         for child_gui in list(self.members_table):
             child_addr = self.neighbors_table.get(child_gui, {}).get('addr')
             if child_addr:
+                self.node_energy -= config.NODE_TX_ENERGY_COST
                 self.send({
                     'dest': child_addr,
                     'type': 'ORPHAN_NOTIFICATION',
@@ -353,34 +434,41 @@ class SensorNode(wsn.Node):
                 })
                 self.log(f"  -> Sent ORPHAN to child {child_gui}")
         
+        # NEW: Broadcast to ALL neighbors so they can clean their tables
+        self.node_energy -= config.NODE_TX_ENERGY_COST
+        self.send({
+            'dest': wsn.BROADCAST_ADDR,
+            'type': 'NODE_LEAVING',
+            'gui': self.id,
+            'creation_time': self.now
+        })
+        
         # NEW: Directly orphan parent if it's a router
         if self.parent_gui is not None:
-            # Find the actual parent node object
             for node in sim.nodes:
                 if node.id == self.parent_gui:
                     if hasattr(node, 'role') and node.role == Roles.ROUTER:
                         self.log(f"  -> Parent {self.parent_gui} is ROUTER - directly orphaning it")
-                        # Remove self from parent's member list
                         if self.id in node.members_table:
                             node.members_table.remove(self.id)
-                        # If router has no children left, orphan it
                         if len(node.members_table) == 0:
                             node.log(f"ROUTER has no children left - orphaning")
-                            node.orphan_and_notify_children()  # Recursive cascade upward
+                            node.orphan_and_notify_children(0)
                     break
-        
+    
         # Orphan self immediately after notifications
         self.become_orphaned()
 
     def become_orphaned(self):
-        """Become orphaned and rejoin network."""
+        """Become orphaned and rejoin network.
+        This is called when a node loses its parent.
+        """
         self.log(f"Node {self.id} becoming orphaned")
         
-        # If this was a cluster head, it loses that status
+        # Log the reason for orphaning
         if self.role == Roles.CLUSTER_HEAD:
             self.log(f"Cluster Head {self.id} lost parent, demoting")
-        
-        if self.role == Roles.ROUTER:
+        elif self.role == Roles.ROUTER:
             self.log(f"Router {self.id} lost parent, demoting")
         
         # Reset to unregistered state and attempt to rejoin
@@ -420,6 +508,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({'dest': wsn.BROADCAST_ADDR, 'gui': self.id,'type': 'PROBE', 'creation_time': self.now})
 
     ###################
@@ -435,6 +524,7 @@ class SensorNode(wsn.Node):
             gui for gui, data in self.neighbors_table.items()
             if data.get('next_hop') is None
         ] 
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({'dest': wsn.BROADCAST_ADDR,
                    'type': 'HEART_BEAT',
                    'source': self.ch_addr if self.ch_addr is not None else self.addr,
@@ -455,6 +545,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({'dest': dest, 'type': 'JOIN_REQUEST', 'gui': self.id, 'creation_time': self.now})
 
     ###################
@@ -469,6 +560,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({'dest': wsn.BROADCAST_ADDR, 'type': 'JOIN_REPLY', 'source': self.ch_addr,
                    'gui': self.id, 'dest_gui': gui, 'addr': addr, 'root_addr': self.root_addr,
                    'hop_count': self.hop_count+1, 'creation_time': self.now})
@@ -482,9 +574,10 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({'dest': dest, 'type': 'JOIN_ACK', 'source': self.addr,
                    'gui': self.id, 'creation_time': self.now})
-
+        
     def print_all_neighbor_tables(self):
         """Print neighbor tables for ALL nodes in the simulation"""
         print("\n" + "="*70)
@@ -567,6 +660,7 @@ class SensorNode(wsn.Node):
                     # Send directly to destination
                     pck['next_hop'] = dest_addr
                     pck['path_info']['routing_method'].append('mesh-1hop')
+                    self.node_energy -= config.NODE_TX_ENERGY_COST
                     self.send(pck)
                     return
                             
@@ -581,6 +675,7 @@ class SensorNode(wsn.Node):
                             intermediate_time <= NEIGHBOR_VALIDITY_TIMEOUT):
                             pck['next_hop'] = intermediate_addr
                             pck['path_info']['routing_method'].append('mesh-2hop')
+                            self.node_energy -= config.NODE_TX_ENERGY_COST
                             self.send(pck)
                             return
         
@@ -627,6 +722,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.route_and_forward_package({'dest': self.root_addr, 'type': 'NETWORK_REQUEST', 'source': self.addr, 'creation_time': self.now})
 
     ###################
@@ -640,6 +736,7 @@ class SensorNode(wsn.Node):
         Returns:
 
         """
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.route_and_forward_package({'dest': dest, 'type': 'NETWORK_REPLY', 'source': self.addr, 'addr': addr, 'creation_time': self.now})
 
     ###################
@@ -662,6 +759,7 @@ class SensorNode(wsn.Node):
             if isinstance(child_data, dict):
                 all_child_chs.extend(child_data.get('chs', []))
 
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.send({
             'dest': self.neighbors_table[self.parent_gui]['ch_addr'], 
             'type': 'NETWORK_UPDATE', 
@@ -685,7 +783,7 @@ class SensorNode(wsn.Node):
             return
         
         print(f"\n[Testing: Node {self.id} -> Node {dest_id}] ", end='')
-
+        self.node_energy -= config.NODE_TX_ENERGY_COST
         self.route_and_forward_package({
             'dest': dest_node.addr,
             'type': 'TEST_MESSAGE',
@@ -704,6 +802,7 @@ class SensorNode(wsn.Node):
         """Tell another CH to leave the network."""
         target_addr = self.neighbors_table.get(target_ch_gui, {}).get('addr')
         if target_addr:
+            self.node_energy -= config.NODE_TX_ENERGY_COST
             self.log(f"CH {self.id} sending LEAVE command to CH {target_ch_gui}")
             self.send({
                 'dest': target_addr,
@@ -727,12 +826,30 @@ class SensorNode(wsn.Node):
                 'delay': delay
             })
         
+        
+        self.node_energy = self.node_energy - config.NODE_RX_ENERGY_COST
+
+        if pck['type'] == 'NODE_LEAVING':
+            leaving_gui = pck['gui']
+            self.log(f"Node {self.id} cleaning tables - node {leaving_gui} left network")
+            
+            # Remove from all tables
+            self.neighbors_table.pop(leaving_gui, None)
+            if leaving_gui in self.candidate_parents_table:
+                self.candidate_parents_table.remove(leaving_gui)
+            if leaving_gui in self.members_table:
+                self.members_table.remove(leaving_gui)
+            self.child_networks_table.pop(leaving_gui, None)
+            
+            return
+
         if pck['type'] == 'ORPHAN_NOTIFICATION':
             if pck['gui'] == self.parent_gui:
                 self.log(f"!!! ORPHAN notification from parent {self.parent_gui} - cascading immediately")
-                self.orphan_and_notify_children()
+                self.orphan_and_notify_children(0)
             return
 
+        
         if pck['type'] == 'TEST_MESSAGE':
             if 'path_info' in pck:
                 pck['path_info']['path'].append(self.id)            
@@ -765,15 +882,15 @@ class SensorNode(wsn.Node):
             if pck['type'] == 'CH_LEAVE_COMMAND':
                 if self.role == Roles.CLUSTER_HEAD:
                     sender_gui = pck['gui']
-                    self.log(f"CH {self.id} received LEAVE command from CH {sender_gui} - leaving network")
+                    self.log(f"CH {self.id} received LEAVE command from CH {sender_gui}")
                     if self.can_be_kicked:
                         self.can_be_kicked = False
-                        self.orphan_and_notify_children()
+                        self.orphan_and_notify_children(1)
                 return
 
             if pck['type'] == 'HEART_BEAT':
                 self.update_neighbor(pck)
-                if config.CLUSTERHEAD_NEIGHBORS:
+                if not config.CLUSTERHEAD_NEIGHBORS:
                     if self.role == Roles.CLUSTER_HEAD:
                         sender_role = pck.get('role')
                         sender_gui = pck['gui']
@@ -850,7 +967,7 @@ class SensorNode(wsn.Node):
                     sender_role = pck.get('role')
                     if sender_role == Roles.ROUTER:
                         self.log(f"ROUTER {self.id} detected parent {self.parent_gui} is also ROUTER - leaving network")
-                        self.orphan_and_notify_children()
+                        self.orphan_and_notify_children(0)
                         return  # Stop processing
                 
                 if sender in self.pending_promotions:
@@ -977,12 +1094,32 @@ class SensorNode(wsn.Node):
                         # self.set_timer('TIMER_SENSOR', timer_duration)
 
     def kill_node(self):
-        """Manually kill this node, triggering orphaning of children."""
+        """Manually kill this node, triggering orphaning of children.
+        This permanently removes the node from the network.
+        """
         self.log(f"Node {self.id} is being killed/powered off")
-        self.orphan_and_notify_children()
+        
+        # Broadcast leaving notification BEFORE orphaning children
+        self.node_energy -= config.NODE_TX_ENERGY_COST
+        self.send({
+            'dest': wsn.BROADCAST_ADDR,
+            'type': 'NODE_LEAVING',
+            'gui': self.id,
+            'creation_time': self.now
+        })
+        
+        # Then notify children they're orphaned
+        self.orphan_and_notify_children(0)
+        
+        # Visual indication of dead node (gray)
+        self.scene.nodecolor(self.id, 0.5, 0.5, 0.5)
+        
+        # Mark node as dead so it doesn't try to rejoin
+        self.is_dead = True
+        
+        # Put node to sleep and kill all timers
         self.sleep()
         self.kill_all_timers()
-        self.scene.nodecolor(self.id, 0.5, 0.5, 0.5)
 
     ###################
     def on_timer_fired(self, name, *args, **kwargs):
@@ -1016,22 +1153,29 @@ class SensorNode(wsn.Node):
                     self.hop_count = 0
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
                     self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION / 4)
+                    self.set_timer('KILL_NODES_TEST', config.NODE_KILL_TIME)
                 else:  # otherwise it keeps trying to sending probe after a long time
                     self.c_probe = 0
                     self.set_timer('TIMER_PROBE', 30)
 
         elif name == 'TIMER_HEART_BEAT':  # it sends heart beat message once heart beat timer fired
+            if self.node_energy <= config.ENERGY_MIN:
+                if self.id != ROOT_ID:
+                    self.log(f"Node {self.id} out of energy - leaving network")
+                    self.kill_node()
+                    return
             self.send_heart_beat()
             self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
             if self.role not in [Roles.ROOT, Roles.UNDISCOVERED]:
                 self.check_parent_alive()
             #print(self.id)
 
-        elif name == 'TIMER_JOIN_REQUEST':  # if it has not received heart beat messages before, it sets timer again and wait heart beat messages once join request timer fired.
+        elif name == 'TIMER_JOIN_REQUEST': 
             if len(self.candidate_parents_table) == 0:
                 self.become_unregistered()
-            else:  # otherwise it chose one of them and sends join request
-                self.select_and_join()
+            else:  
+                if (self.role not in [Roles.CLUSTER_HEAD, Roles.REGISTERED, Roles.ROUTER, Roles.ROOT]):
+                    self.select_and_join()
 
         elif name == 'TIMER_REJOIN_DELAY':
             self.log(f"Node {self.id} starting rejoin process after delay")
@@ -1140,11 +1284,13 @@ class SensorNode(wsn.Node):
                     sys.stdout = sys.__stdout__  # Restore to original stdout
                     print(f"\nAll tests complete! Results saved to routing_tests_and_tables.txt")
 
-                    #for node in sim.nodes:
-                    #    if node.id == 15:
-                    #        print(f"\nKilling node {node.id} to test orphaning...")
-                    #        node.kill_node()
-                    #        break
+        elif name == 'KILL_NODES_TEST' and config.NODE_KILL_ALLOWED:                
+            nodeSamples = random.sample(range(1, config.SIM_NODE_COUNT+1), config.NODE_KILL_COUNT)
+            for node in sim.nodes:
+                if node.id in nodeSamples:
+                    if (node.id != ROOT_ID):
+                        print(f"\nKilling node {node.id}")
+                        node.kill_node()
 
         elif name == 'TIMER_PROMOTION_COOLDOWN':
             self.can_promote = True
