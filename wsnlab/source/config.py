@@ -14,10 +14,10 @@ SIM_NODE_COUNT = 80  # node count in simulation
 SIM_NODE_PLACING_CELL_SIZE = 75  # cell size to place one node
 SIM_DURATION = 40000  # simulation Duration in seconds
 SIM_TIME_SCALE = 0.00001  #  The real time dureation of 1 second simualtion time
-SIM_TERRAIN_SIZE = (1400, 1400)  #terrain size
+SIM_TERRAIN_SIZE = (1400, 1000)  #terrain size
 SIM_TITLE = 'Data Collection Tree'  # title of visualization window
 SIM_VISUALIZATION = True  # visualization active
-SCALE = 1  # scale factor for visualization
+SCALE = 1.15  # scale factor for visualization
 
 
 ## application properties
@@ -27,11 +27,13 @@ EXPORT_CH_CSV_INTERVAL = 10  # simulation time units;
 EXPORT_NEIGHBOR_CSV_INTERVAL = 10  # simulation time units;
 
 CLUSTERHEAD_NEIGHBORS = False # False = Optimization
-NODE_KILL_ALLOWED = False # X Nodes are Killed at Y Time
+NODE_KILL_ALLOWED = True # X Nodes are Killed at Y Time
 NODE_KILL_TIME = 8000
 NODE_KILL_COUNT = 10
+REVIVE_NODES_ALLOWED = True
+REVIVE_NODES_TIME = 15000
 
-ENERGY_EN = 1 #ENABLE/DISABLE Energy
+ENERGY_EN = 0 #ENABLE/DISABLE Energy
 NODE_INITIAL_ENERGY = 10000 # initial energy of nodes
 ENERGY_MIN = 100 #Minimum energy before node voluntarily leaves
 
@@ -41,3 +43,11 @@ if ENERGY_EN:
 else:
     NODE_TX_ENERGY_COST = 0 # no energy loss
     NODE_RX_ENERGY_COST = 0 # no energy loss
+
+TEST_ALL_ROUTES = 1
+ROUTE_TEST_TIME = 10000
+
+SCREENSHOT_SIM_TIME1 = 7000
+SCREENSHOT_SIM_TIME2 = (NODE_KILL_TIME + 100) - SCREENSHOT_SIM_TIME1
+SCREENSHOT_SIM_TIME3 = 12000 - (SCREENSHOT_SIM_TIME1 + SCREENSHOT_SIM_TIME2)
+SCREENSHOT_SIM_TIME4 = 18000 - (SCREENSHOT_SIM_TIME1 + SCREENSHOT_SIM_TIME2 + SCREENSHOT_SIM_TIME3)

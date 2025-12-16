@@ -6,6 +6,8 @@ from source import wsnlab_vis as wsn
 import math
 from source import config
 from collections import Counter
+from PIL import ImageGrab
+import pygetwindow as gw
 
 
 import csv 
@@ -112,7 +114,7 @@ class SensorNode(wsn.Node):
         self.root_addr = None
         self.set_role(Roles.UNDISCOVERED)
         self.is_root_eligible = True if self.id == ROOT_ID else False
-        
+        self.screenshotCount = 0
         # ========== PROBE STATE ==========
         self.c_probe = 0
         self.th_probe = 10
@@ -126,7 +128,9 @@ class SensorNode(wsn.Node):
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        
+        self.cluster_id = None
+        self.member_id = None
+
         # ========== JOIN REQUEST STATE ==========
         self.received_JR_guis = []
         self.received_probes = {}
@@ -207,7 +211,7 @@ class SensorNode(wsn.Node):
         """
         if self.role != Roles.UNDISCOVERED:
             self.kill_all_timers()
-            self.log(f'Node {self.id} becoming UNREGISTERED - resetting all states')
+            #self.log(f'Node {self.id} becoming UNREGISTERED - resetting all states')
         
         # ========== VISUAL RESET ==========
         self.scene.nodecolor(self.id, 1, 1, 0)  # Yellow for unregistered
@@ -234,7 +238,9 @@ class SensorNode(wsn.Node):
         self.candidate_parents_table = []
         self.child_networks_table = {}
         self.members_table = []
-        
+        self.cluster_id = None
+        self.member_id = None
+
         # ========== JOIN REQUEST STATE ==========
         self.received_JR_guis = []
         self.received_probes = {}
@@ -269,7 +275,7 @@ class SensorNode(wsn.Node):
         
         # ========== REJOIN PROCESS ==========
         # Start rejoin process after a delay to avoid immediate re-collision
-        self.log(f'Node {self.id} will attempt rejoin after delay')
+        #self.log(f'Node {self.id} will attempt rejoin after delay')
         self.set_timer('TIMER_REJOIN_DELAY', 200)
     
     
@@ -363,7 +369,6 @@ class SensorNode(wsn.Node):
         # Clean up invalid neighbors if requested
         if invalid_neighbors:
             for gui in invalid_neighbors:
-                self.log(f"Auto-cleaning invalid neighbor {gui}")
                 self.neighbors_table.pop(gui, None)
                 
                 if gui in self.candidate_parents_table:
@@ -389,26 +394,22 @@ class SensorNode(wsn.Node):
         
         if parent_status is None:
             # Parent not in neighbor table at all - shouldn't happen but handle it
-            self.log(f"WARNING: Parent {self.parent_gui} not in neighbor table!")
             self.handle_parent_failure()
             return
         
         if not parent_status['valid']:
             # Parent has timed out according to NEIGHBOR_VALIDITY_TIMEOUT
             time_since_heard = self.now - parent_status['last_heard']
-            self.log(f"PARENT TIMEOUT! No heartbeat from parent {self.parent_gui} for {time_since_heard:.1f} time units")
             self.handle_parent_failure()
 
     def handle_parent_failure(self):
         """Handle the case where parent node has failed/left network."""
-        self.log(f"Parent {self.parent_gui} has failed. Orphaning node {self.id}")
         
         # If this node is a router, check if it should demote
         if self.role == Roles.ROUTER:
             # Router only exists to forward for children
             # If parent is dead, router should leave too
             if len(self.members_table) == 0:
-                self.log(f"Router {self.id} has no children and parent died. Leaving network.")
                 self.orphan_and_notify_children(0)
                 return
         
@@ -417,7 +418,7 @@ class SensorNode(wsn.Node):
 
     def orphan_and_notify_children(self, CH_LEAVE):
         """Orphan this node and IMMEDIATELY notify all children to orphan as well."""
-        self.log(f"Node {self.id} orphaning and notifying {len(self.members_table)} children")
+        #self.log(f"Node {self.id} orphaning and notifying {len(self.members_table)} children")
         if (not CH_LEAVE): #If not first node to orphan, optimization can continue
             self.can_be_kicked = True
         # Send ORPHAN notification to all direct children in members_table
@@ -432,7 +433,6 @@ class SensorNode(wsn.Node):
                     'gui': self.id,
                     'creation_time': self.now
                 })
-                self.log(f"  -> Sent ORPHAN to child {child_gui}")
         
         # NEW: Broadcast to ALL neighbors so they can clean their tables
         self.node_energy -= config.NODE_TX_ENERGY_COST
@@ -448,31 +448,48 @@ class SensorNode(wsn.Node):
             for node in sim.nodes:
                 if node.id == self.parent_gui:
                     if hasattr(node, 'role') and node.role == Roles.ROUTER:
-                        self.log(f"  -> Parent {self.parent_gui} is ROUTER - directly orphaning it")
                         if self.id in node.members_table:
                             node.members_table.remove(self.id)
                         if len(node.members_table) == 0:
-                            node.log(f"ROUTER has no children left - orphaning")
                             node.orphan_and_notify_children(0)
                     break
     
         # Orphan self immediately after notifications
-        self.become_orphaned()
-
-    def become_orphaned(self):
-        """Become orphaned and rejoin network.
-        This is called when a node loses its parent.
-        """
-        self.log(f"Node {self.id} becoming orphaned")
-        
-        # Log the reason for orphaning
-        if self.role == Roles.CLUSTER_HEAD:
-            self.log(f"Cluster Head {self.id} lost parent, demoting")
-        elif self.role == Roles.ROUTER:
-            self.log(f"Router {self.id} lost parent, demoting")
-        
-        # Reset to unregistered state and attempt to rejoin
         self.become_unregistered()
+
+
+        
+
+    def print_all_node_addresses(self, filename="node_addresses.txt"):
+        """Print ch_addr and net_addr for every node to a text file."""
+        with open(filename, "w") as f:
+            f.write("="*80 + "\n")
+            f.write("NODE ADDRESS INFORMATION (ch_addr and net_addr)\n")
+            f.write("="*80 + "\n")
+            f.write(f"{'Node ID':<10} {'Role':<15} {'addr':<20} {'ch_addr':<20} {'net_addr':<10}\n")
+            f.write("-"*80 + "\n")
+            
+            for node in sorted(sim.nodes, key=lambda n: n.id):
+                if not hasattr(node, 'role'):
+                    continue
+                
+                role_name = node.role.name if hasattr(node.role, 'name') else str(node.role)
+                
+                # Get addr info
+                addr_str = str(node.addr) if hasattr(node, 'addr') and node.addr else "None"
+                
+                # Get ch_addr info
+                ch_addr_str = str(node.ch_addr) if hasattr(node, 'ch_addr') and node.ch_addr else "None"
+                
+                # Get net_addr (cluster ID)
+                if hasattr(node, 'addr') and node.addr:
+                    net_addr = node.addr.net_addr
+                else:
+                    net_addr = "None"
+                
+                f.write(f"{node.id:<10} {role_name:<15} {addr_str:<20} {ch_addr_str:<20} {net_addr:<10}\n")
+            
+            f.write("="*80 + "\n")
 
     ###################
     def select_and_join(self):
@@ -782,7 +799,24 @@ class SensorNode(wsn.Node):
             print(f"Cannot send from Node {self.id} to Node {dest_id}: Destination not found or not registered")
             return
         
-        print(f"\n[Testing: Node {self.id} -> Node {dest_id}] ", end='')
+        # Get source address
+        if self.role == Roles.ROOT or self.role == Roles.CLUSTER_HEAD:
+            source_addr = self.ch_addr
+        else:
+            source_addr = self.addr
+        
+        source_addr_str = f"[{source_addr.net_addr},{source_addr.node_addr}]" if source_addr else "[None,None]"
+        
+        # Get dest address
+        if dest_node.role == Roles.ROOT or dest_node.role == Roles.CLUSTER_HEAD:
+            dest_addr = dest_node.ch_addr
+        else:
+            dest_addr = dest_node.addr
+        
+        dest_addr_str = f"[{dest_addr.net_addr},{dest_addr.node_addr}]" if dest_addr else "[None,None]"
+        
+        print(f"\n[Testing: Node {self.id} {source_addr_str} -> Node {dest_id} {dest_addr_str}] ", end='')
+        
         self.node_energy -= config.NODE_TX_ENERGY_COST
         self.route_and_forward_package({
             'dest': dest_node.addr,
@@ -793,6 +827,7 @@ class SensorNode(wsn.Node):
                 'origin_id': self.id,
                 'dest_id': dest_id,
                 'path': [self.id],
+                'addresses': [source_addr_str],  # Initialize with source address
                 'routing_method': ['START']
             },
             'creation_time': self.now
@@ -803,7 +838,7 @@ class SensorNode(wsn.Node):
         target_addr = self.neighbors_table.get(target_ch_gui, {}).get('addr')
         if target_addr:
             self.node_energy -= config.NODE_TX_ENERGY_COST
-            self.log(f"CH {self.id} sending LEAVE command to CH {target_ch_gui}")
+            #self.log(f"CH {self.id} sending LEAVE command to CH {target_ch_gui}")
             self.send({
                 'dest': target_addr,
                 'type': 'CH_LEAVE_COMMAND',
@@ -831,7 +866,7 @@ class SensorNode(wsn.Node):
 
         if pck['type'] == 'NODE_LEAVING':
             leaving_gui = pck['gui']
-            self.log(f"Node {self.id} cleaning tables - node {leaving_gui} left network")
+            #self.log(f"Node {self.id} cleaning tables - node {leaving_gui} left network")
             
             # Remove from all tables
             self.neighbors_table.pop(leaving_gui, None)
@@ -845,34 +880,49 @@ class SensorNode(wsn.Node):
 
         if pck['type'] == 'ORPHAN_NOTIFICATION':
             if pck['gui'] == self.parent_gui:
-                self.log(f"!!! ORPHAN notification from parent {self.parent_gui} - cascading immediately")
+                #self.log(f"!!! ORPHAN notification from parent {self.parent_gui} - cascading immediately")
                 self.orphan_and_notify_children(0)
             return
 
         
         if pck['type'] == 'TEST_MESSAGE':
             if 'path_info' in pck:
-                pck['path_info']['path'].append(self.id)            
+                pck['path_info']['path'].append(self.id)
+                
+                # Add current node's address
+                if self.role == Roles.ROOT or self.role == Roles.CLUSTER_HEAD:
+                    addr_to_use = self.ch_addr
+                else:
+                    addr_to_use = self.addr
+                
+                if addr_to_use:
+                    addr_str = f"[{addr_to_use.net_addr},{addr_to_use.node_addr}]"
+                else:
+                    addr_str = "[None,None]"
+                
+                pck['path_info']['addresses'].append(addr_str)
             
             if self.addr is not None and pck['dest'] == self.addr:
-                print(f"Node {self.id} ARRIVED")
+                # Destination reached - print the route
                 path_info = pck.get('path_info', {})
                 path = path_info.get('path', [])
-                methods = path_info.get('routing_method', [])
-                origin_id = path_info.get('origin_id', '?')
-                dest_id = path_info.get('dest_id', '?')
+                addresses = path_info.get('addresses', [])
                 
-                path_str = str(path[0])
-                for i in range(1, len(path)):
-                    method = methods[i] if i < len(methods) else 'unknown'
-                    routing_type = 'mesh' if 'neighbor' in method else 'tree'
-                    path_str += f" -({routing_type})-> {path[i]}"
+                # Build route string
+                route_parts = []
+                for i in range(len(path)):
+                    node_id = path[i]
+                    addr_str = addresses[i] if i < len(addresses) else "[?,?]"
+                    route_parts.append(f"Node {node_id} {addr_str}")
+                
+                route_str = " -> ".join(route_parts)
+                print(f"{route_str} ARRIVED")
                 return 
                 
             else:
-                print(f"Node {self.id} -> ", end='')
+                # Intermediate hop - DON'T print, just forward silently
                 self.route_and_forward_package(pck)
-                return  
+                return 
 
         if self.role == Roles.ROOT or self.role == Roles.CLUSTER_HEAD:
             if 'next_hop' in pck.keys() and pck['dest'] != self.addr and pck['dest'] != self.ch_addr:
@@ -882,7 +932,7 @@ class SensorNode(wsn.Node):
             if pck['type'] == 'CH_LEAVE_COMMAND':
                 if self.role == Roles.CLUSTER_HEAD:
                     sender_gui = pck['gui']
-                    self.log(f"CH {self.id} received LEAVE command from CH {sender_gui}")
+                    #self.log(f"CH {self.id} received LEAVE command from CH {sender_gui}")
                     if self.can_be_kicked:
                         self.can_be_kicked = False
                         self.orphan_and_notify_children(1)
@@ -910,11 +960,11 @@ class SensorNode(wsn.Node):
                                 # NEW: Instead of leaving immediately, start random timer
                                 if sender_gui not in self.ch_collision_timers:
                                     random_delay = random.uniform(0, 50)
-                                    self.log(f"CH {self.id} heard {self.ch_collision_count[sender_gui]} heartbeats from {sender_role.name} {sender_gui} - timer set for {random_delay:.1f}s")
+                                    #self.log(f"CH {self.id} heard {self.ch_collision_count[sender_gui]} heartbeats from {sender_role.name} {sender_gui} - timer set for {random_delay:.1f}s")
                                     self.ch_collision_timers[sender_gui] = True
                                     self.set_timer('TIMER_CH_COLLISION_DECISION', random_delay, other_ch_gui=sender_gui)
-                            else:
-                                self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
+                            #else:
+                            #    self.log(f"CH {self.id} heard heartbeat #{self.ch_collision_count[sender_gui]} from {sender_role.name} {sender_gui}")
                                        
                 sender = pck['gui']
 
@@ -966,7 +1016,7 @@ class SensorNode(wsn.Node):
                 if sender == self.parent_gui:
                     sender_role = pck.get('role')
                     if sender_role == Roles.ROUTER:
-                        self.log(f"ROUTER {self.id} detected parent {self.parent_gui} is also ROUTER - leaving network")
+                        #self.log(f"ROUTER {self.id} detected parent {self.parent_gui} is also ROUTER - leaving network")
                         self.orphan_and_notify_children(0)
                         return  # Stop processing
                 
@@ -1034,6 +1084,7 @@ class SensorNode(wsn.Node):
                     self.send_network_request()
             if pck['type'] == 'NETWORK_REPLY':
                 self.set_role(Roles.CLUSTER_HEAD)
+                
                 try:
                     write_clusterhead_distances_csv("clusterhead_distances.csv")
                 except Exception as e:
@@ -1097,7 +1148,7 @@ class SensorNode(wsn.Node):
         """Manually kill this node, triggering orphaning of children.
         This permanently removes the node from the network.
         """
-        self.log(f"Node {self.id} is being killed/powered off")
+        #self.log(f"Node {self.id} is being killed/powered off")
         
         # Broadcast leaving notification BEFORE orphaning children
         self.node_energy -= config.NODE_TX_ENERGY_COST
@@ -1120,6 +1171,22 @@ class SensorNode(wsn.Node):
         # Put node to sleep and kill all timers
         self.sleep()
         self.kill_all_timers()
+
+    def revive_node(self):
+        """Revive a dead node and have it rejoin the network."""
+        if not self.is_dead:
+            return
+        
+        #self.log(f"Node {self.id} is being revived")
+        self.is_dead = False
+        self.wake_up()
+        self.become_unregistered()
+    
+        self.node_energy = config.NODE_INITIAL_ENERGY
+        
+        self.probe_start_time = self.now
+        self.c_probe = 0
+        self.set_timer('TIMER_PROBE', 1)
 
     ###################
     def on_timer_fired(self, name, *args, **kwargs):
@@ -1151,9 +1218,13 @@ class SensorNode(wsn.Node):
                     self.ch_addr = wsn.Addr(self.id, 254)
                     self.root_addr = self.addr
                     self.hop_count = 0
+                    self.cluster_id = 0
+                    self.member_id = 254
                     self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
-                    self.set_timer('TIMER_RUN_TESTS', config.SIM_DURATION / 4)
+                    self.set_timer('TIMER_RUN_TESTS', config.ROUTE_TEST_TIME)
                     self.set_timer('KILL_NODES_TEST', config.NODE_KILL_TIME)
+                    self.set_timer('TIMER_REVIVE_NODES', config.REVIVE_NODES_TIME)
+                    self.set_timer('TIMER_SCREENSHOT_SIMULATION', config.SCREENSHOT_SIM_TIME1)
                 else:  # otherwise it keeps trying to sending probe after a long time
                     self.c_probe = 0
                     self.set_timer('TIMER_PROBE', 30)
@@ -1161,7 +1232,7 @@ class SensorNode(wsn.Node):
         elif name == 'TIMER_HEART_BEAT':  # it sends heart beat message once heart beat timer fired
             if self.node_energy <= config.ENERGY_MIN:
                 if self.id != ROOT_ID:
-                    self.log(f"Node {self.id} out of energy - leaving network")
+                    #self.log(f"Node {self.id} out of energy - leaving network")
                     self.kill_node()
                     return
             self.send_heart_beat()
@@ -1178,7 +1249,7 @@ class SensorNode(wsn.Node):
                     self.select_and_join()
 
         elif name == 'TIMER_REJOIN_DELAY':
-            self.log(f"Node {self.id} starting rejoin process after delay")
+            #self.log(f"Node {self.id} starting rejoin process after delay")
             self.send_probe()
             self.set_timer('TIMER_JOIN_REQUEST', 20)
 
@@ -1187,7 +1258,7 @@ class SensorNode(wsn.Node):
             
             # Check if we're still a CH and still hearing from the other CH
             if self.role == Roles.CLUSTER_HEAD and other_ch_gui in self.ch_collision_timers:
-                self.log(f"CH {self.id} timer expired - telling CH {other_ch_gui} to leave")
+                #self.log(f"CH {self.id} timer expired - telling CH {other_ch_gui} to leave")
                 self.send_ch_leave_command(other_ch_gui)
                 
                 # Clean up
@@ -1211,50 +1282,57 @@ class SensorNode(wsn.Node):
                 self.set_timer('TIMER_EXPORT_NEIGHBOR_CSV', config.EXPORT_NEIGHBOR_CSV_INTERVAL)
 
         elif name == 'TIMER_RUN_TESTS':
-            if self.role == Roles.ROOT:
-                # Open file for all test output
-                self.test_output_file = open("routing_tests_and_tables.txt", "w")
-                
-                import sys
-                original_stdout = sys.stdout
-                sys.stdout = self.test_output_file  # Redirect all print statements to file
-                
-                print("\n" + "="*60)
-                print(f"ROUTING TEST - Running at time {self.now}")
-                print("="*60)
-                
-                registered_nodes = []
-                for node in sim.nodes:
-                    if hasattr(node, 'addr') and node.addr is not None:
-                        registered_nodes.append(node)
-                
-                if len(registered_nodes) < 2:
-                    print("Error: Need at least 2 registered nodes")
-                    sys.stdout = original_stdout
-                    self.test_output_file.close()
-                    return
-                
-                # Build test queue
-                self.test_queue = []
-                for source_node in registered_nodes:
-                    for dest_node in registered_nodes:
-                        if source_node.id == dest_node.id:
-                            continue
-                        self.test_queue.append((source_node, dest_node.id))
-                
-                total_tests = len(self.test_queue)
-                print(f"\nFound {len(registered_nodes)} registered nodes")
-                print(f"Testing all {total_tests} routes sequentially...")
-                print("="*60)
-                
-                # Don't restore stdout yet - keep writing to file
-                sys.stdout = original_stdout  # Restore temporarily for console feedback
-                print(f"Starting {total_tests} tests - writing to routing_tests_and_tables.txt")
-                sys.stdout = self.test_output_file  # Back to file
-                
-                # Start the first test
-                self.test_index = 0
-                self.set_timer('TIMER_NEXT_TEST', 0.1)
+            self.print_all_node_addresses()
+            if(config.TEST_ALL_ROUTES):
+                if self.role == Roles.ROOT:
+                    # Open file for all test output
+                    self.test_output_file = open("routing_tests_and_tables.txt", "w")
+                    
+                    import sys
+                    original_stdout = sys.stdout
+                    sys.stdout = self.test_output_file  # Redirect all print statements to file
+                    
+                    print("\n" + "="*60)
+                    print(f"ROUTING TEST - Running at time {self.now}")
+                    print("="*60)
+                    
+                    registered_nodes = []
+                    for node in sim.nodes:
+                        if hasattr(node, 'addr') and node.addr is not None:
+                            registered_nodes.append(node)
+                    
+                    if len(registered_nodes) < 2:
+                        print("Error: Need at least 2 registered nodes")
+                        sys.stdout = original_stdout
+                        self.test_output_file.close()
+                        return
+                    
+                    # Build test queue
+                    self.test_queue = []
+                    for source_node in registered_nodes:
+                        for dest_node in registered_nodes:
+                            if source_node.id == dest_node.id:
+                                continue
+                            self.test_queue.append((source_node, dest_node.id))
+                    
+                    total_tests = len(self.test_queue)
+                    print(f"\nFound {len(registered_nodes)} registered nodes")
+                    print(f"Testing all {total_tests} routes sequentially...")
+                    print(f"[ClusterID, MemberID]")
+                    print(f"ClusterID = CHs NodeID")
+                    print(f"if CH:\n\tMemberID = 254\nelse:\n\tMemberID = NodeID")
+                    print(f"CH Example:     NodeID = 54, addr = [54, 254]")
+                    print(f"Member Example: NodeID = 8, addr = [54, 8]")
+                    print("="*60)
+                    
+                    # Don't restore stdout yet - keep writing to file
+                    sys.stdout = original_stdout  # Restore temporarily for console feedback
+                    print(f"Starting {total_tests} tests - writing to routing_tests_and_tables.txt")
+                    sys.stdout = self.test_output_file  # Back to file
+                    
+                    # Start the first test
+                    self.test_index = 0
+                    self.set_timer('TIMER_NEXT_TEST', 0.1)
 
         elif name == 'TIMER_NEXT_TEST':
             if self.role == Roles.ROOT and self.test_index < len(self.test_queue):
@@ -1291,6 +1369,34 @@ class SensorNode(wsn.Node):
                     if (node.id != ROOT_ID):
                         print(f"\nKilling node {node.id}")
                         node.kill_node()
+        elif name == 'TIMER_REVIVE_NODES' and config.REVIVE_NODES_ALLOWED:
+            if self.role == Roles.ROOT:
+                revived_count = 0
+                for node in sim.nodes:
+                    if hasattr(node, 'is_dead') and node.is_dead:
+                        node.revive_node()
+                        revived_count += 1
+                self.set_timer('TIMER_REVIVE_NODES', config.REVIVE_NODES_TIME)
+                #print(f"\n[Time {self.now}] ROOT revived {revived_count} dead nodes")
+        elif name == 'TIMER_SCREENSHOT_SIMULATION':
+            
+            window = gw.getWindowsWithTitle("Data Collection Tree")[0]
+            left, top, right, bottom = window.left, window.top, window.right, window.bottom
+            img = ImageGrab.grab(bbox=(left, top, right, bottom))
+            
+            if self.screenshotCount == 0:
+                img.save("simulationComplete.png")
+                self.set_timer('TIMER_SCREENSHOT_SIMULATION', config.SCREENSHOT_SIM_TIME2)
+            elif self.screenshotCount == 1:
+                img.save("simulationDeletedNodes.png")
+                self.set_timer('TIMER_SCREENSHOT_SIMULATION', config.SCREENSHOT_SIM_TIME3)
+            elif self.screenshotCount == 2:
+                img.save("simulationFixedTree.png")
+                self.set_timer('TIMER_SCREENSHOT_SIMULATION', config.SCREENSHOT_SIM_TIME4)
+            elif self.screenshotCount == 3:
+                img.save("simulationRevivedNodes.png")
+            self.screenshotCount += 1
+            
 
         elif name == 'TIMER_PROMOTION_COOLDOWN':
             self.can_promote = True
