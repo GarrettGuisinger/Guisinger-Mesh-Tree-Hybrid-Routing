@@ -100,7 +100,7 @@ class SensorNode(wsn.Node):
         th_probe (int): probe message threshold
         neighbors_table (Dict): keeps the neighbor information with received heart beat messages
     """
-
+    testSuccessful = 0
     ###################
     def init(self):
         """Initialization of node. Setting all attributes of node."""
@@ -861,9 +861,16 @@ class SensorNode(wsn.Node):
                 'delay': delay
             })
         
-        
+        if self.is_dead or self.node_energy <= 0:
+            self.node_energy = 0
+            return
+        if self.node_energy <= config.ENERGY_MIN:
+                if self.id != ROOT_ID:
+                    #self.log(f"Node {self.id} out of energy - leaving network")
+                    self.kill_node()
+                    return
         self.node_energy = self.node_energy - config.NODE_RX_ENERGY_COST
-
+        
         if pck['type'] == 'NODE_LEAVING':
             leaving_gui = pck['gui']
             #self.log(f"Node {self.id} cleaning tables - node {leaving_gui} left network")
@@ -917,6 +924,7 @@ class SensorNode(wsn.Node):
                 
                 route_str = " -> ".join(route_parts)
                 print(f"{route_str} ARRIVED")
+                SensorNode.testSuccessful += 1
                 return 
                 
             else:
@@ -1188,6 +1196,39 @@ class SensorNode(wsn.Node):
         self.c_probe = 0
         self.set_timer('TIMER_PROBE', 1)
 
+    def log_info(self):
+        """Log time, average energy, and total energy of ALL nodes to a text file (4 columns for easy plotting)."""
+        if self.role != Roles.ROOT:
+            return
+        
+        total_energy = 0
+        node_count = 0
+        
+        # Count ALL nodes regardless of status
+        for node in sim.nodes:
+            if hasattr(node, 'node_energy'):
+                total_energy += node.node_energy
+                node_count += 1
+        
+        if node_count > 0:
+            avg_energy = total_energy / node_count
+            
+            with open("energy_logs.txt", "a") as f:
+                f.write(f"{self.now:.2f}\t{avg_energy:.6f}\n")
+        
+            packet_count = len(PACKET_LOGS)
+            with open("packetcount_logs.txt", "a") as f:
+                f.write(f"{self.now:.2f}\t{packet_count}\n")
+                
+        members = 0
+        for node in sim.nodes:
+            if hasattr(node, 'addr') and node.addr is not None and not node.is_dead:
+                members += 1
+
+        with open("nodecount_logs.txt", "a") as f:
+                f.write(f"{self.now:.2f}\t{members}\n")
+
+         
     ###################
     def on_timer_fired(self, name, *args, **kwargs):
         """Executes when a timer fired.
@@ -1235,6 +1276,9 @@ class SensorNode(wsn.Node):
                     #self.log(f"Node {self.id} out of energy - leaving network")
                     self.kill_node()
                     return
+            if self.id == ROOT_ID:
+                self.node_energy = config.NODE_INITIAL_ENERGY
+                self.log_info()
             self.send_heart_beat()
             self.set_timer('TIMER_HEART_BEAT', config.HEARTH_BEAT_TIME_INTERVAL)
             if self.role not in [Roles.ROOT, Roles.UNDISCOVERED]:
@@ -1570,25 +1614,26 @@ time.sleep(1)
 
 # Export packet delays
 with open("packet_delays.csv", "w") as f:
-    f.write("packet_type,source,dest,creation_time,arrival_time,delay_ms\n")
+    f.write("packet_type,source,dest,creation_time,arrival_time,delay_s\n")
     for log in PACKET_LOGS:
         f.write(f"{log['type']},{log['source']},{log['dest']},{log['creation_time']:.3f},{log['arrival_time']:.3f},{log['delay']:.3f}\n")
 
 # Export join times
 with open("join_times.csv", "w") as f:
-    f.write("node_id,join_delay_ms\n")
+    f.write("node_id,join_delay_s\n")
     for jt in JOIN_TIMES:
         f.write(f"{jt['node_id']},{jt['join_delay']:.3f}\n")
 
 # Print summary
 if JOIN_TIMES:
     avg_join = sum(j['join_delay'] for j in JOIN_TIMES) / len(JOIN_TIMES)
-    print(f"\nAverage Join Time: {avg_join:.3f} ms")
+    print(f"\nAverage Join Time: {avg_join:.3f} s")
 
 if PACKET_LOGS:
     avg_delay = sum(p['delay'] for p in PACKET_LOGS) / len(PACKET_LOGS)
-    print(f"Average Packet Delay: {avg_delay:.3f} ms")
+    print(f"Average Packet Delay: {avg_delay:.3f} s")
     print(f"Total Packets Logged: {len(PACKET_LOGS)}")
+print(f"Successful Test Messages: {SensorNode.testSuccessful} out of {math.comb(config.SIM_NODE_COUNT,2)*2}")
 
 #test_all_registered_nodes()
 

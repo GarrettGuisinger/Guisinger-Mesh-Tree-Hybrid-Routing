@@ -1,6 +1,0 @@
-Convert all elements off of default gui
-Fix typos
-Fix optimization/node leaving (some nodes get stuck in rejoin loops or are in range but are not joining network)
-fix packet delay logging
-Add config parameters
-Energy Model
